@@ -18,6 +18,7 @@ correct_gas_analyzer!(gas_analyzer::Nothing, data; kwargs...) = nothing
 rotate!(double_rotation::Nothing, data; kwargs...) = nothing
 decompose!(mrd::Nothing, data; kwargs...) = nothing
 
+# Data should be in the correct format
 function process(pipeline::EddyPipeline; kwargs...)
     data = read_data(pipeline.input; kwargs...)
     control_physical_limits!(pipeline.limit_check, data; kwargs...)
