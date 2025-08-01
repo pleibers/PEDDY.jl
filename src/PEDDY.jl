@@ -1,12 +1,28 @@
 module PEDDY
 
+using Reexport
+@reexport using DimensionalData
+using DimensionalData: @dim
+
 abstract type PipelineStep end
 
 abstract type AbstractInput <: PipelineStep end
+
+"""
+    read_data(p::AbstractInput; kwargs...)
+
+Read data from a file. Or pass data to the pipeline directly.
+
+# Returns 
+    data::DimArray
+"""
 function read_data end
 
-abstract type AbstractLimitCheck <: PipelineStep end
-function control_physical_limits! end
+abstract type AbstractSensor end
+function check_diagnostics! end    
+
+abstract type AbstractQC <: PipelineStep end    
+function quality_control! end
 
 abstract type AbstractDespiking <: PipelineStep end
 function despike! end
@@ -27,16 +43,12 @@ abstract type AbstractOutput <: PipelineStep end
 function write_data end
 
 const OptionalPipelineStep = Union{Nothing, PipelineStep}
+@dim Var "Variables"
+export Var
 
-abstract type AbstractSensor end
-struct CSAT3 <: AbstractSensor end
-struct CSAT3B <: AbstractSensor end
-struct IRGASON <: AbstractSensor end
-struct LICOR <: AbstractSensor end
-
-# include("errors.jl")
+include("Sensors/sensors.jl")
 include("pipeline.jl")
 include("IO/IO.jl")
-include("bounds_check.jl")
+include("QC/QC.jl")
 
 end

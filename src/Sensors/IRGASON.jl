@@ -1,0 +1,11 @@
+@kwdef struct IRGASON <: AbstractSensor 
+    diag_sonic::Int = 0
+    diag_gas::Int = 240 # There was no values
+end
+needs_cols(sensor::IRGASON) = (:diag_sonic, :diag_gas, :Ux, :Uy, :Uz, :Ts, :CO2, :H2O, :T, :P)
+has_variables(sensor::IRGASON) = (:Ux, :Uy, :Uz, :Ts, :CO2, :H2O, :T, :P)
+
+function check_diagnostics!(sensor::IRGASON, data::DimArray)
+    # TODO: Is missing sonic diagnostics
+    # TODO: Is missing gas diagnostics
+end
