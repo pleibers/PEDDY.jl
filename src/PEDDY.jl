@@ -56,7 +56,7 @@ include("IO/IO.jl")
 include("QC/QC.jl")
 include("despiking.jl")
 include("interpolation.jl")
-include("correction.jl")
+include("h2o_correction.jl")
 include("double_rotation.jl")
 include("MRD.jl")
 

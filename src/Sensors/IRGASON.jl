@@ -1,7 +1,13 @@
 @kwdef struct IRGASON <: AbstractSensor 
     diag_sonic::Int = 0
     diag_gas::Int = 240 # There was no values
+    # H2O calibration coefficients (optional, but IRGASON sensors don't have them)
+    calibration_coefficients::Union{Nothing, H2OCalibrationCoefficients} = nothing
 end
+
+# Note: IRGASON sensors do not have H2O calibration coefficients.
+# H2O calibration is specific to LICOR gas analyzers (LI-COR Inc.).
+
 needs_cols(sensor::IRGASON) = (:diag_sonic, :diag_gas, :Ux, :Uy, :Uz, :Ts, :CO2, :H2O, :T, :P)
 has_variables(sensor::IRGASON) = (:Ux, :Uy, :Uz, :Ts, :CO2, :H2O, :T, :P)
 

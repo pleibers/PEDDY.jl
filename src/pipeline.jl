@@ -43,7 +43,7 @@ function process(pipeline::EddyPipeline; kwargs...)
     fill_gaps!(pipeline.gap_filling, high_frequency_data, low_frequency_data; kwargs...)
     
     next!(prog; showvalues = [("Status", "Correcting Gas Analyzer...")], spinner="🧹")
-    correct_gas_analyzer!(pipeline.gas_analyzer, high_frequency_data, low_frequency_data; kwargs...)
+    correct_gas_analyzer!(pipeline.gas_analyzer, high_frequency_data, low_frequency_data, pipeline.sensor; kwargs...)
     
     next!(prog; showvalues = [("Status", "Applying Double Rotation...")], spinner="🌀")
     rotate!(pipeline.double_rotation, high_frequency_data, low_frequency_data; kwargs...) # should these two be in place?
