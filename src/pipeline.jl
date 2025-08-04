@@ -24,33 +24,33 @@ decompose!(mrd::Nothing, high_frequency_data, low_frequency_data; kwargs...) = n
 function process(pipeline::EddyPipeline; kwargs...)
     prog = ProgressUnknown("PEDDY is cleaning your data...",spinner=true)
 
-    next!(prog; showvalues = [("Status", "Reading Data...")])
+    next!(prog; showvalues = [("Status", "Reading Data...")], spinner="📖")
     high_frequency_data, low_frequency_data = read_data(pipeline.input; kwargs...)
     check_data(high_frequency_data, pipeline.sensor)
     # FAQ: Should we check the low frequency data?
 
-    next!(prog; showvalues = [("Status", "Performing Quality Control...")])
+    next!(prog; showvalues = [("Status", "Performing Quality Control...")], spinner="🔬")
     quality_control!(pipeline.limit_check, high_frequency_data, low_frequency_data, pipeline.sensor; kwargs...)
     
-    next!(prog; showvalues = [("Status", "Removing Spikes...")])
+    next!(prog; showvalues = [("Status", "Removing Spikes...")], spinner="🦔")
     despike!(pipeline.despiking, high_frequency_data, low_frequency_data; kwargs...)
     
-    next!(prog; showvalues = [("Status", "Filling Gaps...")])
+    next!(prog; showvalues = [("Status", "Filling Gaps...")], spinner="🧩")
     fill_gaps!(pipeline.gap_filling, high_frequency_data, low_frequency_data; kwargs...)
     
-    next!(prog; showvalues = [("Status", "Correcting Gas Analyzer...")])
+    next!(prog; showvalues = [("Status", "Correcting Gas Analyzer...")], spinner="🧹")
     correct_gas_analyzer!(pipeline.gas_analyzer, high_frequency_data, low_frequency_data; kwargs...)
     
-    next!(prog; showvalues = [("Status", "Applying Double Rotation...")])
+    next!(prog; showvalues = [("Status", "Applying Double Rotation...")], spinner="🌀")
     rotate!(pipeline.double_rotation, high_frequency_data, low_frequency_data; kwargs...) # should these two be in place?
     
-    next!(prog; showvalues = [("Status", "Decomposing MRD...")])
+    next!(prog; showvalues = [("Status", "Decomposing MRD...")], spinner="〰️")
     decompose!(pipeline.mrd, high_frequency_data, low_frequency_data; kwargs...) # should these two be in place?
     
-    next!(prog; showvalues = [("Status", "Writing Data...")])
+    next!(prog; showvalues = [("Status", "Writing Data...")], spinner="💾")
     write_data(pipeline.output, high_frequency_data, low_frequency_data; kwargs...)
     
-    finish!(prog; desc="PEDDY is done cleaning your data!")
+    finish!(prog; desc="PEDDY is done cleaning your data!", spinner="🎉")
 end
 
 function check_data(data::DimArray, sensor::AbstractSensor)
