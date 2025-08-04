@@ -43,14 +43,22 @@ abstract type AbstractOutput <: PipelineStep end
 function write_data end
 
 const OptionalPipelineStep = Union{Nothing, PipelineStep}
+
 @dim Var "Variables"
 export Var
 
 include("Sensors/sensors.jl")
+
 include("pipeline.jl")
+
 include("IO/IO.jl")
+
 include("QC/QC.jl")
+include("despiking.jl")
 include("interpolation.jl")
+include("correction.jl")
+include("double_rotation.jl")
+include("MRD.jl")
 
 export AbstractInput, AbstractSensor, AbstractQC, AbstractDespiking, AbstractGapFilling, AbstractGasAnalyzer, AbstractDoubleRotation, AbstractMRD, AbstractOutput
 export read_data, write_data
