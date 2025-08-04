@@ -16,25 +16,38 @@ end
 
 function PhysicsBoundsCheck(;number_type=Float64, kwargs...)
     defaults = default_physical_limits(number_type=number_type)
+    # Merge user-provided kwargs with defaults
+    merged_limits = copy(defaults)
     for (key, value) in kwargs
         if !(key in keys(defaults))
             println("Valid keys: $(keys(defaults))")
             throw(ArgumentError("Invalid key: $key"))
         end
+        merged_limits[key] = value
     end
-    return PhysicsBoundsCheck(;defaults...)
+    # Construct directly using the merged limits
+    return PhysicsBoundsCheck(
+        merged_limits[:Ux],
+        merged_limits[:Uy], 
+        merged_limits[:Uz],
+        merged_limits[:Ts],
+        merged_limits[:CO2],
+        merged_limits[:H2O],
+        merged_limits[:Ta],
+        merged_limits[:P]
+    )
 end
 
 function default_physical_limits(;number_type::Type{N}) where N <: Real # FAQ: Is this Sensor dependent?
     limits = Dict{Symbol, Limit{N}}(
-        :Ux => Limit(-100, 100),
-        :Uy => Limit(-100, 100),
-        :Uz => Limit(-50, 50),
-        :Ts => Limit(-50, 50),
-        :CO2 => Limit(0, typemax(N)),
-        :H2O => Limit(0, typemax(N)),
-        :Ta => Limit(-50, 50),
-        :P => Limit(0, typemax(N))
+        :Ux => Limit(N(-100), N(100)),
+        :Uy => Limit(N(-100), N(100)),
+        :Uz => Limit(N(-50), N(50)),
+        :Ts => Limit(N(-50), N(50)),
+        :CO2 => Limit(N(0), typemax(N)),
+        :H2O => Limit(N(0), typemax(N)),
+        :Ta => Limit(N(-50), N(50)),
+        :P => Limit(N(0), typemax(N))
     )
 end
 

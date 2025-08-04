@@ -1,3 +1,7 @@
+export EddyPipeline
+export process
+export check_data
+
 using ProgressMeter
 
 @kwdef struct EddyPipeline{SI <: AbstractSensor, I <: AbstractInput, L <: OptionalPipelineStep, D <: OptionalPipelineStep, G <: OptionalPipelineStep, GA <: OptionalPipelineStep, DR <: OptionalPipelineStep, MRD <: OptionalPipelineStep, O <: AbstractOutput}

@@ -50,5 +50,10 @@ include("Sensors/sensors.jl")
 include("pipeline.jl")
 include("IO/IO.jl")
 include("QC/QC.jl")
+include("interpolation.jl")
+
+export AbstractInput, AbstractSensor, AbstractQC, AbstractDespiking, AbstractGapFilling, AbstractGasAnalyzer, AbstractDoubleRotation, AbstractMRD, AbstractOutput
+export read_data, write_data
+export check_diagnostics!, quality_control!, despike!, fill_gaps!, correct_gas_analyzer!, rotate!, decompose!
 
 end
