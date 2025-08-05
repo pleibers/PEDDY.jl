@@ -19,7 +19,7 @@ Defines a group of variables that are combined for spike detection.
 wind_group = VariableGroup("Wind Components", [:Ux, :Uy, :Uz], spike_threshold=6.0)
 
 # Gas analyzer group with different threshold
-gas_group = VariableGroup("Gas Analyzer", [:CO2, :H2O], spike_threshold=8.0)
+gas_group = VariableGroup("Gas Analyzer", [:CO2, :H2O], spike_threshold=6.0)
 ```
 """
 struct VariableGroup
@@ -56,8 +56,8 @@ SimpleSigmundDespiking()
 SimpleSigmundDespiking(
     variable_groups=[
         VariableGroup("Wind Components", [:Ux, :Uy, :Uz], spike_threshold=6.0),
-        VariableGroup("Sonic Temperature", [:Ts], spike_threshold=5.0),
-        VariableGroup("Gas Analyzer", [:CO2, :H2O], spike_threshold=8.0)
+        VariableGroup("Sonic Temperature", [:Ts], spike_threshold=7.0),
+        VariableGroup("Gas Analyzer", [:CO2, :H2O], spike_threshold=6.0)
     ]
 )
 
@@ -151,23 +151,35 @@ end
     calculate_rolling_median(data::AbstractVector, window_size::Int) -> Vector
 
 Calculate rolling median with center alignment, handling NaN values.
+Optimized version that pre-allocates buffers and minimizes allocations.
 """
 function calculate_rolling_median(data::AbstractVector, window_size::Int)
     n = length(data)
     result = similar(data)
     half_window = window_size ÷ 2
     
-    for i in 1:n
+    # Pre-allocate buffer for valid data to avoid repeated allocations
+    max_window_size = min(window_size, n)
+    valid_buffer = Vector{eltype(data)}(undef, max_window_size)
+    
+    @inbounds for i in 1:n
         # Define window bounds with center alignment
         start_idx = max(1, i - half_window)
         end_idx = min(n, i + half_window)
         
-        # Extract window data, filtering out NaN values
-        window_data = data[start_idx:end_idx]
-        valid_data = filter(!isnan, window_data)
+        # Extract valid (non-NaN) data directly into pre-allocated buffer
+        valid_count = 0
+        for j in start_idx:end_idx
+            if !isnan(data[j])
+                valid_count += 1
+                valid_buffer[valid_count] = data[j]
+            end
+        end
         
-        if length(valid_data) > 0
-            result[i] = median(valid_data)
+        if valid_count > 0
+            # Use view to avoid allocation and sort only the valid portion
+            valid_view = @view valid_buffer[1:valid_count]
+            result[i] = median(valid_view)
         else
             result[i] = NaN
         end
@@ -177,31 +189,39 @@ function calculate_rolling_median(data::AbstractVector, window_size::Int)
 end
 
 """
-    calculate_pattern_deviation(df_di::AbstractVector) -> Vector
+    calculate_pattern_deviation(absolute_deviations::AbstractVector) -> Vector
 
-Calculate pattern deviation using neighboring points:
-df_hat = |df_di| - 0.5 * (|df_di[i-1]| + |df_di[i+1]|)
+Calculate pattern-adjusted deviations using neighboring points:
+pattern_deviation = |deviation| - 0.5 * (|neighbor_left| + |neighbor_right|)
+Optimized version with vectorized operations and efficient boundary handling.
 """
-function calculate_pattern_deviation(df_di::AbstractVector)
-    n = length(df_di)
-    df_hat = similar(df_di)
-    
-    for i in 1:n
-        abs_di = abs(df_di[i])
-        
-        # Handle boundary conditions
-        if i == 1
-            neighbor_avg = abs(df_di[2]) / 2.0  # Only right neighbor
-        elseif i == n
-            neighbor_avg = abs(df_di[n-1]) / 2.0  # Only left neighbor
-        else
-            neighbor_avg = 0.5 * (abs(df_di[i-1]) + abs(df_di[i+1]))
-        end
-        
-        df_hat[i] = abs_di - 0.5 * neighbor_avg
+function calculate_pattern_deviation(absolute_deviations::AbstractVector)
+    n = length(absolute_deviations)
+    if n < 3
+        # For very small arrays, use simple approach
+        return abs.(absolute_deviations) .- 0.5 .* abs.(absolute_deviations)
     end
     
-    return df_hat
+    # Pre-compute absolute values once
+    abs_deviations = abs.(absolute_deviations)
+    pattern_adjusted_deviations = similar(absolute_deviations)
+    
+    # Handle boundaries explicitly (faster than conditional in loop)
+    @inbounds begin
+        # First element: only right neighbor
+        pattern_adjusted_deviations[1] = abs_deviations[1] - 0.25 * abs_deviations[2]
+        
+        # Last element: only left neighbor  
+        pattern_adjusted_deviations[n] = abs_deviations[n] - 0.25 * abs_deviations[n-1]
+        
+        # Interior points: vectorized computation
+        for i in 2:(n-1)
+            neighbor_average = 0.5 * (abs_deviations[i-1] + abs_deviations[i+1])
+            pattern_adjusted_deviations[i] = abs_deviations[i] - 0.5 * neighbor_average
+        end
+    end
+    
+    return pattern_adjusted_deviations
 end
 
 # Helper functions for improved readability
@@ -243,54 +263,69 @@ end
     _calculate_mad_normalized_deviations(variable_data::AbstractVector, window_size_points::Int) -> Vector
 
 Calculate MAD-normalized deviations for a single variable using the Sigmund et al. algorithm.
+Optimized version that minimizes allocations and reuses intermediate arrays.
 """
 function _calculate_mad_normalized_deviations(variable_data::AbstractVector, window_size_points::Int)
+    n = length(variable_data)
+    
     # Calculate rolling median
     rolling_median_values = calculate_rolling_median(variable_data, window_size_points)
     
-    # Calculate absolute deviations from rolling median
-    absolute_deviations = abs.(variable_data .- rolling_median_values)
+    # Calculate absolute deviations from rolling median (reuse this array)
+    absolute_deviations = similar(variable_data)
+    @inbounds @simd for i in 1:n
+        absolute_deviations[i] = abs(variable_data[i] - rolling_median_values[i])
+    end
     
     # Calculate MAD (Median Absolute Deviation)
     mad_values = calculate_rolling_median(absolute_deviations, window_size_points)
     
-    # Apply pattern detection using neighboring points
+    # Apply pattern detection using neighboring points (modifies absolute_deviations in-place)
     pattern_adjusted_deviations = calculate_pattern_deviation(absolute_deviations)
     
-    # Normalize by MAD with small epsilon to avoid division by zero
-    epsilon = 1e-10
-    normalized_deviations = pattern_adjusted_deviations ./ (mad_values .+ epsilon)
+    # Normalize by MAD with small epsilon to avoid division by zero (reuse pattern_adjusted_deviations)
+    @inbounds @simd for i in 1:n
+        pattern_adjusted_deviations[i] = pattern_adjusted_deviations[i] / (mad_values[i] + 1e-10)
+    end
     
-    return normalized_deviations
+    return pattern_adjusted_deviations
 end
 
 """
-    _apply_spike_threshold_and_remove_for_group!(var_group::VariableGroup, high_frequency_data::DimArray, 
-                                               group_combined_deviations::Vector, group_idx::Int)
+    _apply_spike_threshold_and_remove_for_group!(variable_group::VariableGroup, high_frequency_data::DimArray, 
+                                               combined_normalized_deviations::Vector, group_index::Int)
 
 Apply spike detection threshold for a specific variable group and remove detected spikes by setting them to NaN.
-Uses the group's own spike threshold.
+Uses the group's own spike threshold. Optimized version with pre-computed threshold and efficient indexing.
 """
-function _apply_spike_threshold_and_remove_for_group!(var_group::VariableGroup, high_frequency_data::DimArray, 
-                                                     group_combined_deviations::Vector, group_idx::Int)
-    # Apply threshold (normalized by 0.6745 factor from Sigmund et al.)
-    threshold_normalized = var_group.spike_threshold / 0.6745
-    spike_indices = abs.(group_combined_deviations) .>= threshold_normalized
+function _apply_spike_threshold_and_remove_for_group!(variable_group::VariableGroup, high_frequency_data::DimArray, 
+                                                     combined_normalized_deviations::Vector, group_index::Int)
+    # Pre-compute normalized threshold (constant for this group)
+    normalized_threshold = variable_group.spike_threshold / 0.6745
     
-    # Count detected spikes
-    num_spikes_detected = sum(spike_indices)
+    # Find spike indices efficiently
+    n_time_points = length(combined_normalized_deviations)
+    spikes_detected_count = 0
     
-    if num_spikes_detected > 0
-        println("    Group $group_idx ('$(var_group.name)'): Detected $num_spikes_detected spikes, setting to NaN")
-        
-        # Set spikes to NaN for all variables in this group
-        for variable_name in var_group.variables
-            if variable_name ∈ dims(high_frequency_data, Var)
-                variable_data = @view high_frequency_data[Var=At(variable_name)]
-                variable_data[spike_indices] .= NaN
+    # Count spikes and apply threshold in single pass
+    @inbounds for time_index in 1:n_time_points
+        if abs(combined_normalized_deviations[time_index]) >= normalized_threshold
+            spikes_detected_count += 1
+            
+            # Set spikes to NaN for all variables in this group immediately
+            for variable_name in variable_group.variables
+                if variable_name ∈ dims(high_frequency_data, Var)
+                    variable_time_series = @view high_frequency_data[Var=At(variable_name)]
+                    variable_time_series[time_index] = NaN
+                end
             end
         end
+    end
+    
+    # Report results
+    if spikes_detected_count > 0
+        println("    Group $group_index ('$(variable_group.name)'): Detected $spikes_detected_count spikes, setting to NaN")
     else
-        println("    Group $group_idx ('$(var_group.name)'): No spikes detected")
+        println("    Group $group_index ('$(variable_group.name)'): No spikes detected")
     end
 end
