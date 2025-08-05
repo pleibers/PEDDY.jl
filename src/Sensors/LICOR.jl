@@ -33,7 +33,7 @@ end
 Create LICOR sensor with predefined calibration coefficients.
 Supported sensor_name values: "SFC", "LOWER", "UPPER", "BOTTOM".
 """
-function LICOR(sensor_name::String, year=nothing; kwargs...)
+function default_calibration_coefficients(sensor_name::String, year=nothing; kwargs...)
     coeffs = nothing
     
     if sensor_name == "SFC" && (year == 2024 || year == 2025)
@@ -68,7 +68,7 @@ function LICOR(sensor_name::String, year=nothing; kwargs...)
         coeffs = nothing
     end
     
-    return LICOR(; calibration_coefficients=coeffs, kwargs...)
+    return coeffs
 end
 
 needs_cols(sensor::LICOR) = (:diag_sonic, :diag_gas, :Ux, :Uy, :Uz, :Ts, :CO2, :H2O, :T, :P)

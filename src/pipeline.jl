@@ -4,13 +4,13 @@ export check_data
 
 using ProgressMeter
 
-@kwdef struct EddyPipeline{SI <: AbstractSensor, I <: AbstractInput, L <: OptionalPipelineStep, D <: OptionalPipelineStep, G <: OptionalPipelineStep, GA <: OptionalPipelineStep, DR <: OptionalPipelineStep, MRD <: OptionalPipelineStep, O <: AbstractOutput}
+@kwdef struct EddyPipeline{SI <: AbstractSensor, I <: AbstractInput, QC <: OptionalPipelineStep, D <: OptionalPipelineStep, G <: OptionalPipelineStep, GA <: OptionalPipelineStep, DR <: OptionalPipelineStep, MRD <: OptionalPipelineStep, O <: AbstractOutput}
     sensor::SI
     input::I
-    limit_check::L
-	despiking::D
-	gap_filling::G
+    quality_control::QC
 	gas_analyzer::GA
+    despiking::D
+	gap_filling::G
 	double_rotation::DR
 	mrd::MRD
 	output::O
@@ -18,9 +18,9 @@ end
 
 # Default to no operation
 quality_control!(qc::Nothing, high_frequency_data, low_frequency_data, sensor; kwargs...) = nothing
+correct_gas_analyzer!(gas_analyzer::Nothing, high_frequency_data, low_frequency_data; kwargs...) = nothing
 despike!(despiking::Nothing, high_frequency_data, low_frequency_data; kwargs...) = nothing
 fill_gaps!(gap_filling::Nothing, high_frequency_data, low_frequency_data; kwargs...) = nothing
-correct_gas_analyzer!(gas_analyzer::Nothing, high_frequency_data, low_frequency_data; kwargs...) = nothing
 rotate!(double_rotation::Nothing, high_frequency_data, low_frequency_data; kwargs...) = nothing
 decompose!(mrd::Nothing, high_frequency_data, low_frequency_data; kwargs...) = nothing
 
@@ -34,17 +34,17 @@ function process(pipeline::EddyPipeline; kwargs...)
     # FAQ: Should we check the low frequency data?
 
     next!(prog; showvalues = [("Status", "Performing Quality Control...")], spinner="🔬")
-    quality_control!(pipeline.limit_check, high_frequency_data, low_frequency_data, pipeline.sensor; kwargs...)
-    
+    quality_control!(pipeline.quality_control, high_frequency_data, low_frequency_data, pipeline.sensor; kwargs...)
+
+    next!(prog; showvalues = [("Status", "Correcting Gas Analyzer...")], spinner="🧹")
+    correct_gas_analyzer!(pipeline.gas_analyzer, high_frequency_data, low_frequency_data, pipeline.sensor; kwargs...)
+
     next!(prog; showvalues = [("Status", "Removing Spikes...")], spinner="🦔")
     despike!(pipeline.despiking, high_frequency_data, low_frequency_data; kwargs...)
     
     next!(prog; showvalues = [("Status", "Filling Gaps...")], spinner="🧩")
     fill_gaps!(pipeline.gap_filling, high_frequency_data, low_frequency_data; kwargs...)
-    
-    next!(prog; showvalues = [("Status", "Correcting Gas Analyzer...")], spinner="🧹")
-    correct_gas_analyzer!(pipeline.gas_analyzer, high_frequency_data, low_frequency_data, pipeline.sensor; kwargs...)
-    
+
     next!(prog; showvalues = [("Status", "Applying Double Rotation...")], spinner="🌀")
     rotate!(pipeline.double_rotation, high_frequency_data, low_frequency_data; kwargs...) # should these two be in place?
     
