@@ -105,10 +105,8 @@ function resample_to_low_frequency(high_frequency_data, h2o_variable_name, press
         end_index = min(low_freq_index * high_freq_points_per_low_freq, length(high_freq_time))
 
         if start_index <= length(high_freq_time)
-            low_frequency_h2o_averages[low_freq_index] = mean(skipmissing(high_frequency_data[h2o_variable_name,
-                                                                                        start_index:end_index]))
-            low_frequency_pressure_averages[low_freq_index] = mean(skipmissing(high_frequency_data[pressure_variable_name,
-                                                                                             start_index:end_index]))
+            low_frequency_h2o_averages[low_freq_index] = mean(skipmissing(high_frequency_data[Ti=start_index:end_index, Var=At(h2o_variable_name)]))
+            low_frequency_pressure_averages[low_freq_index] = mean(skipmissing(high_frequency_data[Ti=start_index:end_index, Var=At(pressure_variable_name)]))
         else
             low_frequency_h2o_averages[low_freq_index] = NaN
             low_frequency_pressure_averages[low_freq_index] = NaN
@@ -242,8 +240,8 @@ function correct_gas_analyzer!(gas_analyzer::H2OCalibration, high_frequency_data
     high_freq_points_per_low_freq = Int(round(low_freq_sampling_interval / high_freq_sampling_interval))
 
     # Extract required variables
-    temperature_data = low_frequency_data[gas_analyzer.temp_var, :]
-    relative_humidity_data = low_frequency_data[gas_analyzer.rh_var, :] * 100  # Convert to percentage
+    temperature_data = low_frequency_data[Var(At(gas_analyzer.temp_var))]
+    relative_humidity_data = low_frequency_data[Var(At(gas_analyzer.rh_var))] * 100  # Convert to percentage
     h2o_variable = gas_analyzer.h2o_variable
     pressure_variable = gas_analyzer.pressure_var
 
@@ -261,14 +259,14 @@ function correct_gas_analyzer!(gas_analyzer::H2OCalibration, high_frequency_data
                                                                                                            high_freq_points_per_low_freq, high_freq_time, num_low_freq_points)
 
     # Step 4: Apply bias correction to high-frequency data
-    h2o_measurements = high_frequency_data[h2o_variable, :]
-    pressure_measurements = high_frequency_data[pressure_variable, :] .* 1000  # Convert to Pa
+    h2o_measurements = high_frequency_data[Var(At(gas_analyzer.h2o_variable))]
+    pressure_measurements = high_frequency_data[Var(At(gas_analyzer.pressure_var))] .* 1000  # Convert to Pa
 
     h2o_corrected_concentrations = apply_bias_correction(h2o_measurements, pressure_measurements, licor_raw_absorptances_high_freq, reference_raw_absorptances_high_freq,
                                                         calibration_coefficients)
 
     # Step 5: Replace the original H2O variable with corrected data in-place
-    high_frequency_data.data[h2o_variable] = h2o_corrected_concentrations
+    high_frequency_data[Var(At(gas_analyzer.h2o_variable))] = h2o_corrected_concentrations
 
     println("H2O calibration correction applied. Variable $h2o_variable has been corrected in-place.")
 

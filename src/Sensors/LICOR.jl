@@ -1,3 +1,5 @@
+export H2OCalibrationCoefficients
+
 """
     H2OCalibrationCoefficients
 
@@ -18,11 +20,12 @@ Fields:
     H20_Span::N
 end
 
-@kwdef struct LICOR{N<:Real} <: AbstractSensor
+@kwdef struct LICOR{N<:Real, COEFF <: Union{Nothing,H2OCalibrationCoefficients{N}}} <: AbstractSensor
+    number_type::Type{N} = Float64 # needed for calls where COEFF = Nothing
     diag_sonic::Int = 0
     diag_gas::Int = 240
     # H2O calibration coefficients (optional)
-    calibration_coefficients::Union{Nothing,H2OCalibrationCoefficients{N}} = nothing
+    calibration_coefficients::COEFF = nothing
 end
 
 # Predefined constructors with calibration coefficients based on sensor_info.py
@@ -33,7 +36,7 @@ end
 Create LICOR sensor with predefined calibration coefficients.
 Supported sensor_name values: "SFC", "LOWER", "UPPER", "BOTTOM".
 """
-function default_calibration_coefficients(sensor_name::String, year=nothing; number_type=Float64)
+function default_calibration_coefficients(sensor_name::String="", year=nothing; number_type=Float64)
     coeffs = nothing
 
     if sensor_name == "SFC" && (year == 2024 || year == 2025)

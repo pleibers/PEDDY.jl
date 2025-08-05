@@ -59,7 +59,7 @@ using DimensionalData
         # Create pipeline with only gap filling enabled
         pipeline = PEDDY.EddyPipeline(; sensor=sensor,
                                       input=input,
-                                      limit_check=nothing,
+                                      quality_control=nothing,
                                       despiking=nothing,
                                       gap_filling=gap_filling,
                                       gas_analyzer=nothing,
@@ -127,7 +127,7 @@ using DimensionalData
 
         pipeline = PEDDY.EddyPipeline(; sensor=sensor,
                                       input=input,
-                                      limit_check=qc,
+                                      quality_control=qc,
                                       despiking=nothing,
                                       gap_filling=gap_filling,
                                       gas_analyzer=nothing,
@@ -181,7 +181,7 @@ using DimensionalData
 
             pipeline = PEDDY.EddyPipeline(; sensor=sensor,
                                           input=input,
-                                          limit_check=nothing,
+                                          quality_control=nothing,
                                           despiking=nothing,
                                           gap_filling=gap_filling,
                                           gas_analyzer=nothing,

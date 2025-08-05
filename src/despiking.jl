@@ -75,7 +75,7 @@ struct SimpleSigmundDespiking{N<:Real} <: AbstractDespiking
     window_minutes::N
     variable_groups::Vector{VariableGroup}
     
-    function SimpleSigmundDespiking(; window_minutes=5.0, number_type::DataType=Float64, variable_groups=VariableGroup{number_type}[])
+    function SimpleSigmundDespiking(; window_minutes=5.0, number_type::Type{N}=Float64, variable_groups=VariableGroup{number_type}[]) where {N <: Real}
         # Default group if none provided
         if isempty(variable_groups)
             default_group = VariableGroup("Default Sonic", [:Ux, :Uy, :Uz, :Ts], spike_threshold=6.0)
@@ -159,8 +159,10 @@ function calculate_rolling_median(data::AbstractVector, window_size::Int)
     half_window = window_size ÷ 2
     
     # Pre-allocate buffer for valid data to avoid repeated allocations
-    max_window_size = min(window_size, n)
-    valid_buffer = Vector{eltype(data)}(undef, max_window_size)
+    # The actual window size can be larger than window_size when window_size is even
+    # because we use ÷ for half_window, so the total range can be 2*half_window + 1
+    max_possible_window = min(2 * half_window + 1, n)
+    valid_buffer = Vector{eltype(data)}(undef, max_possible_window)
     
     @inbounds for i in 1:n
         # Define window bounds with center alignment

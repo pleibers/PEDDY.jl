@@ -204,7 +204,7 @@ using DimensionalData
 
         pipeline = PEDDY.EddyPipeline(; sensor=sensor,
                                       input=input,
-                                      limit_check=qc,
+                                      quality_control=qc,
                                       despiking=nothing,
                                       gap_filling=nothing,
                                       gas_analyzer=nothing,

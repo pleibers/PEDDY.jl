@@ -25,7 +25,7 @@ function quality_control!(qc::Nothing, high_frequency_data, low_frequency_data, 
     return nothing
 end
 function correct_gas_analyzer!(gas_analyzer::Nothing, high_frequency_data,
-                               low_frequency_data; kwargs...)
+                               low_frequency_data, sensor::AbstractSensor; kwargs...)
     return nothing
 end
 despike!(despiking::Nothing, high_frequency_data, low_frequency_data; kwargs...) = nothing
@@ -41,7 +41,7 @@ decompose!(mrd::Nothing, high_frequency_data, low_frequency_data; kwargs...) = n
 
 # Data should be in the correct format
 function process(pipeline::EddyPipeline; kwargs...)
-    prog = ProgressUnknown("PEDDY is cleaning your data..."; spinner=true)
+    prog = ProgressUnknown(;desc="PEDDY is cleaning your data...", spinner=true)
 
     next!(prog; showvalues=[("Status", "Reading Data...")], spinner="📖")
     high_frequency_data, low_frequency_data = read_data(pipeline.input; kwargs...)
