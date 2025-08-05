@@ -4,7 +4,7 @@ using Statistics
 using Dates
 
 """
-    VariableGroup(name::String, variables::Vector{Symbol}; spike_threshold::Float64=6.0)
+    VariableGroup(name::String, variables::Vector{Symbol}; spike_threshold::Real=6.0)
 
 Defines a group of variables that are combined for spike detection.
 
@@ -22,13 +22,13 @@ wind_group = VariableGroup("Wind Components", [:Ux, :Uy, :Uz], spike_threshold=6
 gas_group = VariableGroup("Gas Analyzer", [:CO2, :H2O], spike_threshold=6.0)
 ```
 """
-struct VariableGroup
+struct VariableGroup{N<:Real}
     name::String
     variables::Vector{Symbol}
-    spike_threshold::Float64
+    spike_threshold::N
     
-    function VariableGroup(name::String, variables::Vector{Symbol}; spike_threshold::Float64=6.0)
-        new(name, variables, spike_threshold)
+    function VariableGroup(name::String, variables::Vector{Symbol}; spike_threshold=6.0)
+        new{typeof(spike_threshold)}(name, variables, spike_threshold)
     end
 end
 
@@ -71,17 +71,17 @@ SimpleSigmundDespiking(
 )
 ```
 """
-struct SimpleSigmundDespiking <: AbstractDespiking
-    window_minutes::Float64
+struct SimpleSigmundDespiking{N<:Real} <: AbstractDespiking
+    window_minutes::N
     variable_groups::Vector{VariableGroup}
     
-    function SimpleSigmundDespiking(; window_minutes=5.0, variable_groups=VariableGroup[])
+    function SimpleSigmundDespiking(; window_minutes=5.0, number_type::DataType=Float64, variable_groups=VariableGroup{number_type}[])
         # Default group if none provided
         if isempty(variable_groups)
             default_group = VariableGroup("Default Sonic", [:Ux, :Uy, :Uz, :Ts], spike_threshold=6.0)
             variable_groups = [default_group]
         end
-        new(window_minutes, variable_groups)
+        new{number_type}(window_minutes, variable_groups)
     end
 end
 
@@ -227,11 +227,11 @@ end
 # Helper functions for improved readability
 
 """
-    _calculate_window_size(high_frequency_data::DimArray, window_minutes::Float64) -> Int
+    _calculate_window_size(high_frequency_data::DimArray, window_minutes::Real) -> Int
 
 Calculate window size in data points from time dimension and desired window duration.
 """
-function _calculate_window_size(high_frequency_data::DimArray, window_minutes::Float64)
+function _calculate_window_size(high_frequency_data::DimArray, window_minutes)
     time_dimension = dims(high_frequency_data, Ti)
     
     if length(time_dimension) < 2

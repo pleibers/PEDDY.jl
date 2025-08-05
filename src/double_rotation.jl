@@ -34,14 +34,14 @@ double_rotation = WindDoubleRotation(Ux=:u, Uy=:v, Uz=:w)
 # References
 Standard eddy covariance double rotation method for coordinate transformation.
 """
-struct WindDoubleRotation <: AbstractDoubleRotation
-    block_duration_minutes::Float64
+struct WindDoubleRotation{N<:Real} <: AbstractDoubleRotation
+    block_duration_minutes::N
     Ux::Symbol
     Uy::Symbol
     Uz::Symbol
     
-    function WindDoubleRotation(; block_duration_minutes=30.0, Ux=:Ux, Uy=:Uy, Uz=:Uz)
-        new(block_duration_minutes, Ux, Uy, Uz)
+    function WindDoubleRotation(; number_type=Float64, block_duration_minutes=30.0, Ux=:Ux, Uy=:Uy, Uz=:Uz)
+        new{number_type}(block_duration_minutes, Ux, Uy, Uz)
     end
 end
 
@@ -56,7 +56,7 @@ The algorithm processes data in blocks and applies two sequential rotations:
 
 Modifies the wind components in-place and stores rotation angles in low_frequency_data.
 """
-function rotate!(double_rotation::WindDoubleRotation, high_frequency_data::DimArray, low_frequency_data; kwargs...)
+function rotate!(double_rotation::WindDoubleRotation{N}, high_frequency_data::DimArray, low_frequency_data; kwargs...) where {N}
     # Calculate block size from time dimension
     block_size_points = _calculate_block_size(high_frequency_data, double_rotation.block_duration_minutes)
     
@@ -78,7 +78,7 @@ function rotate!(double_rotation::WindDoubleRotation, high_frequency_data::DimAr
     println("Processing $(length(block_indices)) blocks")
     
     # Store rotation angles (will be added to low_frequency_data if needed)
-    rotation_angles = Vector{NamedTuple{(:theta, :phi), Tuple{Float64, Float64}}}()
+    rotation_angles = Vector{NamedTuple{(:theta, :phi), Tuple{N, N}}}()
     
     # Process each block
     for (block_idx, (start_idx, end_idx)) in enumerate(block_indices)
@@ -113,11 +113,11 @@ function rotate!(double_rotation::WindDoubleRotation, high_frequency_data::DimAr
 end
 
 """
-    _calculate_block_size(data::DimArray, block_duration_minutes::Float64) -> Int
+    _calculate_block_size(data::DimArray, block_duration_minutes) -> Int
 
 Calculate the number of data points in a block based on sampling frequency.
 """
-function _calculate_block_size(data::DimArray, block_duration_minutes)
+function _calculate_block_size(data::DimArray, block_duration_minutes) 
     time_dim = dims(data, Ti)
     
     if length(time_dim) < 2
@@ -162,13 +162,13 @@ function _calculate_block_indices(n_points::Int, block_size::Int)
 end
 
 """
-    _apply_double_rotation(wind_matrix::Matrix{Float64}) -> Tuple{Matrix{Float64}, Float64, Float64}
+    _apply_double_rotation(wind_matrix::Matrix{N}) where N -> Tuple{Matrix{N}, N, N}
 
 Apply double rotation to wind matrix.
 
 Returns rotated wind matrix and rotation angles (theta, phi).
 """
-function _apply_double_rotation(wind_matrix::Matrix{Float64})
+function _apply_double_rotation(wind_matrix::Matrix{N}) where {N}
     # First rotation: set mean(v) = 0
     mean_u = Statistics.mean(skipmissing(wind_matrix[:, 1]))
     mean_v = Statistics.mean(skipmissing(wind_matrix[:, 2]))

@@ -10,19 +10,19 @@ Fields:
 - `H2O_Zero`: Zero offset
 - `H20_Span`: Span coefficient
 """
-@kwdef struct H2OCalibrationCoefficients
-    A::Float64
-    B::Float64
-    C::Float64
-    H2O_Zero::Float64
-    H20_Span::Float64
+@kwdef struct H2OCalibrationCoefficients{N<:Real}
+    A::N
+    B::N
+    C::N
+    H2O_Zero::N
+    H20_Span::N
 end
 
-@kwdef struct LICOR <: AbstractSensor
+@kwdef struct LICOR{N<:Real} <: AbstractSensor
     diag_sonic::Int = 0
     diag_gas::Int = 240
     # H2O calibration coefficients (optional)
-    calibration_coefficients::Union{Nothing,H2OCalibrationCoefficients} = nothing
+    calibration_coefficients::Union{Nothing,H2OCalibrationCoefficients{N}} = nothing
 end
 
 # Predefined constructors with calibration coefficients based on sensor_info.py
@@ -33,23 +33,23 @@ end
 Create LICOR sensor with predefined calibration coefficients.
 Supported sensor_name values: "SFC", "LOWER", "UPPER", "BOTTOM".
 """
-function default_calibration_coefficients(sensor_name::String, year=nothing; kwargs...)
+function default_calibration_coefficients(sensor_name::String, year=nothing; number_type=Float64)
     coeffs = nothing
 
     if sensor_name == "SFC" && (year == 2024 || year == 2025)
-        coeffs = H2OCalibrationCoefficients(; A=4.82004E3,
+        coeffs = H2OCalibrationCoefficients{number_type}(; A=4.82004E3,
                                             B=3.79290E6,
                                             C=-1.15477E8,
                                             H2O_Zero=0.7087,
                                             H20_Span=0.9885)
     elseif sensor_name == "LOWER"
-        coeffs = H2OCalibrationCoefficients(; A=5.49957E3,
+        coeffs = H2OCalibrationCoefficients{number_type}(; A=5.49957E3,
                                             B=4.00024E6,
                                             C=-1.11280E8,
                                             H2O_Zero=0.8164,
                                             H20_Span=1.0103)
     elseif sensor_name == "UPPER"
-        coeffs = H2OCalibrationCoefficients(; A=4.76480E3,
+        coeffs = H2OCalibrationCoefficients{number_type}(; A=4.76480E3,
                                             B=3.84869E6,
                                             C=-1.15477E8,  # Corrected from original typo
                                             H2O_Zero=0.7311,
