@@ -7,4 +7,5 @@ using Test
     include("test_pipeline_integration.jl")
     include("test_qc.jl")
     include("test_h2o_correction.jl")
+    include("test_despiking.jl")
 end
