@@ -1,6 +1,5 @@
-struct DespikeSigmund <: AbstractDespiking end # FAQ: Does it need parameters?
+struct SimpleDespikeSigmund <: AbstractDespiking end # FAQ: Does it need parameters?
 
-function despike!(despiking::DespikeSigmund, data; kwargs...)
+function despike!(despiking::SimpleDespikeSigmund, data::DimArray; kwargs...)
     # TODO: Implement this
 end
-    

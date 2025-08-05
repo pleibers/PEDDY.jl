@@ -44,17 +44,19 @@ in time series data using various interpolation methods via Interpolations.jl.
 - `variables::Vector{Symbol}`: Variables to apply gap filling to
 - `method::InterpolationMethod`: Interpolation method to use (Linear, Quadratic, Cubic)
 """
-struct GeneralInterpolation{T<:Integer, M<:InterpolationMethod} <: AbstractGapFilling
+struct GeneralInterpolation{T<:Integer,M<:InterpolationMethod} <: AbstractGapFilling
     max_gap_size::T
     variables::Vector{Symbol}
     method::M
 end
 
 # Constructor with defaults
-GeneralInterpolation(; max_gap_size::Int=10, 
-                    variables::Vector{Symbol}=[:Ux, :Uy, :Uz, :Ts, :H2O, :LI_H2Om, :LI_H2Om_corr], 
-                    method::InterpolationMethod=Linear()) = 
-    GeneralInterpolation(max_gap_size, variables, method)
+function GeneralInterpolation(; max_gap_size::Int=10,
+                              variables::Vector{Symbol}=[:Ux, :Uy, :Uz, :Ts, :H2O, :LI_H2Om,
+                                                         :LI_H2Om_corr],
+                              method::InterpolationMethod=Linear())
+    return GeneralInterpolation(max_gap_size, variables, method)
+end
 
 """
     fill_gaps!(gap_filling::GeneralInterpolation, high_frequency_data, low_frequency_data; kwargs...)
@@ -72,18 +74,20 @@ This replicates the Python pepy interpolation logic within the PEDDY.jl pipeline
 Modifies `high_frequency_data` in-place by filling small gaps with interpolated values.
 Only gaps with ≤ max_gap_size consecutive missing values are filled.
 """
-function fill_gaps!(gap_filling::GeneralInterpolation, high_frequency_data, low_frequency_data; kwargs...)
+function fill_gaps!(gap_filling::GeneralInterpolation, high_frequency_data,
+                    low_frequency_data; kwargs...)
     # Process each specified variable
     for var in gap_filling.variables
         if var in dims(high_frequency_data, Var)
             # Explicitly create a view to ensure in-place modification
             data_slice = @view high_frequency_data[Var=At(var)]
-            interpolate_small_gaps!(data_slice, gap_filling.max_gap_size, gap_filling.method)
+            interpolate_small_gaps!(data_slice, gap_filling.max_gap_size,
+                                    gap_filling.method)
         else
             @debug "Variable $var not found in high frequency data"
         end
     end
-    
+
     return nothing
 end
 
@@ -101,17 +105,18 @@ Larger gaps are left as missing values.
 # Returns
 - Modifies `data` in-place, filling small gaps with interpolated values
 """
-function interpolate_small_gaps!(data::AbstractArray, max_gap_size::Int, method::InterpolationMethod)
+function interpolate_small_gaps!(data::AbstractArray, max_gap_size::Int,
+                                 method::InterpolationMethod)
     n = length(data)
     n == 0 && return data
-    
+
     # Find missing value positions
     missing_mask = isnan.(data)
     any(missing_mask) || return data  # No missing values
-    
+
     # Identify consecutive missing value groups
     gap_groups = identify_gap_groups(missing_mask)
-    
+
     # Only interpolate small gaps
     for (start_idx, end_idx) in gap_groups
         gap_size = end_idx - start_idx + 1
@@ -119,7 +124,7 @@ function interpolate_small_gaps!(data::AbstractArray, max_gap_size::Int, method:
             interpolate_gap!(data, start_idx, end_idx, method)
         end
     end
-    
+
     return data
 end
 
@@ -138,7 +143,7 @@ Replicates the Python pandas groupby logic for consecutive NaN detection.
 function identify_gap_groups(missing_mask::AbstractVector{Bool})
     gap_groups = Tuple{Int,Int}[]
     n = length(missing_mask)
-    
+
     i = 1
     while i <= n
         if missing_mask[i]
@@ -153,7 +158,7 @@ function identify_gap_groups(missing_mask::AbstractVector{Bool})
             i += 1
         end
     end
-    
+
     return gap_groups
 end
 
@@ -169,15 +174,17 @@ Uses nearest valid values before and after the gap, with fallback to forward/bac
 - `end_idx`: End index of the gap (inclusive)
 - `method`: Interpolation method to use
 """
-function interpolate_gap!(data::AbstractArray, start_idx::Int, end_idx::Int, method::InterpolationMethod)
+function interpolate_gap!(data::AbstractArray, start_idx::Int, end_idx::Int,
+                          method::InterpolationMethod)
     n = length(data)
-    
+
     # Find valid data points around the gap
     valid_indices, valid_values = find_valid_neighbors(data, start_idx, end_idx, method)
-    
+
     if length(valid_indices) >= 2
         # Use Interpolations.jl for sophisticated interpolation
-        interpolate_with_method!(data, start_idx, end_idx, valid_indices, valid_values, method)
+        interpolate_with_method!(data, start_idx, end_idx, valid_indices, valid_values,
+                                 method)
     elseif length(valid_indices) == 1
         # Single neighbor - forward or backward fill
         fill_value = valid_values[1]
@@ -194,14 +201,15 @@ end
 Find valid data points around a gap for interpolation.
 The number of points depends on the interpolation method.
 """
-function find_valid_neighbors(data::AbstractArray, start_idx::Int, end_idx::Int, method::InterpolationMethod)
+function find_valid_neighbors(data::AbstractArray, start_idx::Int, end_idx::Int,
+                              method::InterpolationMethod)
     n = length(data)
     valid_indices = Int[]
     valid_values = eltype(data)[]
-    
+
     # Determine how many points we need based on method
     points_needed = get_points_needed(method)
-    
+
     # Search backwards from gap
     search_idx = start_idx - 1
     points_before = 0
@@ -213,7 +221,7 @@ function find_valid_neighbors(data::AbstractArray, start_idx::Int, end_idx::Int,
         end
         search_idx -= 1
     end
-    
+
     # Search forwards from gap
     search_idx = end_idx + 1
     points_after = 0
@@ -225,7 +233,7 @@ function find_valid_neighbors(data::AbstractArray, start_idx::Int, end_idx::Int,
         end
         search_idx += 1
     end
-    
+
     return valid_indices, valid_values
 end
 
@@ -243,36 +251,38 @@ get_points_needed(::Cubic) = 2
 
 Perform interpolation using Interpolations.jl based on the specified method.
 """
-function interpolate_with_method!(data::AbstractArray, start_idx::Int, end_idx::Int, 
-                                 valid_indices::Vector{Int}, valid_values::Vector, 
-                                 method::Linear)
+function interpolate_with_method!(data::AbstractArray, start_idx::Int, end_idx::Int,
+                                  valid_indices::Vector{Int}, valid_values::Vector,
+                                  method::Linear)
     # Linear interpolation
     if length(valid_indices) >= 2
-        itp = linear_interpolation(valid_indices, valid_values, extrapolation_bc=Flat())
+        itp = linear_interpolation(valid_indices, valid_values; extrapolation_bc=Flat())
         for i in start_idx:end_idx
             data[i] = itp(i)
         end
     end
 end
 
-function interpolate_with_method!(data::AbstractArray, start_idx::Int, end_idx::Int, 
-                                 valid_indices::Vector{Int}, valid_values::Vector, 
-                                 method::Quadratic)
+function interpolate_with_method!(data::AbstractArray, start_idx::Int, end_idx::Int,
+                                  valid_indices::Vector{Int}, valid_values::Vector,
+                                  method::Quadratic)
     # Quadratic interpolation
     if length(valid_indices) >= 3
-        itp = interpolate((valid_indices,), valid_values, Gridded(Quadratic(Periodic(OnGrid()))))
+        itp = interpolate((valid_indices,), valid_values,
+                          Gridded(Quadratic(Periodic(OnGrid()))))
         for i in start_idx:end_idx
             data[i] = itp(i)
         end
     else
         # Fall back to linear if not enough points
-        interpolate_with_method!(data, start_idx, end_idx, valid_indices, valid_values, Linear())
+        interpolate_with_method!(data, start_idx, end_idx, valid_indices, valid_values,
+                                 Linear())
     end
 end
 
-function interpolate_with_method!(data::AbstractArray, start_idx::Int, end_idx::Int, 
-                                 valid_indices::Vector{Int}, valid_values::Vector, 
-                                 method::Cubic)
+function interpolate_with_method!(data::AbstractArray, start_idx::Int, end_idx::Int,
+                                  valid_indices::Vector{Int}, valid_values::Vector,
+                                  method::Cubic)
     # Cubic spline interpolation
     if length(valid_indices) >= 4
         itp = CubicSplineInterpolation(valid_indices, valid_values)
@@ -281,6 +291,7 @@ function interpolate_with_method!(data::AbstractArray, start_idx::Int, end_idx::
         end
     else
         # Fall back to linear if not enough points
-        interpolate_with_method!(data, start_idx, end_idx, valid_indices, valid_values, Linear())
+        interpolate_with_method!(data, start_idx, end_idx, valid_indices, valid_values,
+                                 Linear())
     end
 end

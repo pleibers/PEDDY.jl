@@ -1,4 +1,4 @@
-@kwdef struct CSAT3B <: AbstractSensor 
+@kwdef struct CSAT3B <: AbstractSensor
     diag_sonic::Int = 0
     diag::Int = 4096
 end
