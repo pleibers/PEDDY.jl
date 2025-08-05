@@ -1,32 +1,87 @@
-export SimpleSigmundDespiking
+export SimpleSigmundDespiking, VariableGroup
 
 using Statistics
 using Dates
 
 """
-    SimpleSigmundDespiking(; window_minutes=5.0, spike_threshold=6.0, variables=[:Ux, :Uy, :Uz, :Ts])
+    VariableGroup(name::String, variables::Vector{Symbol}; spike_threshold::Float64=6.0)
+
+Defines a group of variables that are combined for spike detection.
+
+# Parameters
+- `name`: Descriptive name for the variable group
+- `variables`: Vector of variable symbols to include in this group
+- `spike_threshold`: Spike detection threshold for this group (default: 6.0, normalized by 0.6745)
+
+# Examples
+```julia
+# Wind components group
+wind_group = VariableGroup("Wind Components", [:Ux, :Uy, :Uz], spike_threshold=6.0)
+
+# Gas analyzer group with different threshold
+gas_group = VariableGroup("Gas Analyzer", [:CO2, :H2O], spike_threshold=8.0)
+```
+"""
+struct VariableGroup
+    name::String
+    variables::Vector{Symbol}
+    spike_threshold::Float64
+    
+    function VariableGroup(name::String, variables::Vector{Symbol}; spike_threshold::Float64=6.0)
+        new(name, variables, spike_threshold)
+    end
+end
+
+"""
+    SimpleSigmundDespiking(; window_minutes=5.0, variable_groups=VariableGroup[])
 
 Implements the modified MAD (Median Absolute Deviation) filter for spike detection
 based on Sigmund et al. (2022). This despiking method:
 
 1. Calculates rolling median and MAD over a specified window
 2. Computes deviation patterns using neighboring points
-3. Identifies spikes based on combined variable thresholds
+3. Identifies spikes based on variable group thresholds (each group can have its own threshold)
 4. Sets detected spikes to NaN
 
 # Parameters
 - `window_minutes`: Window size in minutes for rolling statistics (default: 5.0)
-- `spike_threshold`: Threshold for spike detection (default: 6.0, normalized by 0.6745)
-- `variables`: Variables to process for spike detection
+- `variable_groups`: Vector of VariableGroup structs, each with its own threshold
+
+# Examples
+```julia
+# Default: wind components and temperature combined
+SimpleSigmundDespiking()
+
+# Custom groups with different thresholds
+SimpleSigmundDespiking(
+    variable_groups=[
+        VariableGroup("Wind Components", [:Ux, :Uy, :Uz], spike_threshold=6.0),
+        VariableGroup("Sonic Temperature", [:Ts], spike_threshold=5.0),
+        VariableGroup("Gas Analyzer", [:CO2, :H2O], spike_threshold=8.0)
+    ]
+)
+
+# Single variables with individual thresholds
+SimpleSigmundDespiking(
+    variable_groups=[
+        VariableGroup("Wind U", [:Ux], spike_threshold=6.0),
+        VariableGroup("Wind V", [:Uy], spike_threshold=6.0),
+        VariableGroup("Wind W", [:Uz], spike_threshold=7.0)
+    ]
+)
+```
 """
 struct SimpleSigmundDespiking <: AbstractDespiking
     window_minutes::Float64
-    spike_threshold::Float64
-    variables::Vector{Symbol}
+    variable_groups::Vector{VariableGroup}
     
-    function SimpleSigmundDespiking(; window_minutes=5.0, spike_threshold=6.0, 
-                                   variables=[:Ux, :Uy, :Uz, :Ts])
-        new(window_minutes, spike_threshold, variables)
+    function SimpleSigmundDespiking(; window_minutes=5.0, variable_groups=VariableGroup[])
+        # Default group if none provided
+        if isempty(variable_groups)
+            default_group = VariableGroup("Default Sonic", [:Ux, :Uy, :Uz, :Ts], spike_threshold=6.0)
+            variable_groups = [default_group]
+        end
+        new(window_minutes, variable_groups)
     end
 end
 
@@ -44,123 +99,51 @@ The algorithm:
 6. Sets detected spikes to NaN in-place
 """
 function despike!(despiking::SimpleSigmundDespiking, high_frequency_data::DimArray, low_frequency_data; kwargs...)
-    # Get time dimension and calculate sampling frequency
-    time_dim = dims(high_frequency_data, Ti)
-    if length(time_dim) < 2
-        @warn "Insufficient data points for despiking"
-        return
-    end
+    # Calculate window size from time dimension
+    window_size_points = _calculate_window_size(high_frequency_data, despiking.window_minutes)
     
-    # Calculate sampling frequency (assuming regular intervals)
-    dt = time_dim[2] - time_dim[1]
-    dt_seconds = Dates.value(dt) / 1000.0  # Convert milliseconds to seconds
-    freq_hz = 1.0 / dt_seconds  # Frequency in Hz
+    println("Processing spike detection with window size: $window_size_points points")
+    println("Processing $(length(despiking.variable_groups)) variable groups")
     
-    # Calculate window size in data points (5 minutes default)
-    window_size = round(Int, despiking.window_minutes * 60 * freq_hz)
-    window_size = max(window_size, 3)  # Minimum window size
-    
-    # Adjust window size if data is too small (use at most 1/3 of data length)
-    data_length = length(dims(high_frequency_data, Ti))
-    if window_size > data_length ÷ 3
-        window_size = max(data_length ÷ 3, 3)
-        @warn "Adjusted window size to $window_size points due to limited data ($(data_length) points)"
-    end
-    
-    println("Processing spike detection with window size: $window_size points")
-    
-    # Initialize combined deviation array
-    combined_deviation = nothing
-    variables_processed = 0
-    
-    # Process each variable
-    for var in despiking.variables
-        if var ∉ dims(high_frequency_data, Var)
-            continue  # Skip if variable doesn't exist
+    # Process each variable group independently
+    for (group_idx, var_group) in enumerate(despiking.variable_groups)
+        println("  Processing group $group_idx: '$(var_group.name)' with threshold $(var_group.spike_threshold)")
+        println("    Variables: $(var_group.variables)")
+        
+        # Pre-allocate combined deviation array for this group
+        num_time_points = length(dims(high_frequency_data, Ti))
+        group_combined_deviations = zeros(eltype(high_frequency_data), num_time_points)
+        num_variables_in_group = 0
+        
+        # Process each variable in this group
+        for variable_name in var_group.variables
+            if variable_name ∉ dims(high_frequency_data, Var)
+                continue  # Skip if variable doesn't exist in data
+            end
+            
+            # Extract time series for this variable
+            variable_data = @view high_frequency_data[Var=At(variable_name)]
+            
+            if length(variable_data) < window_size_points
+                @warn "Data length ($(length(variable_data))) smaller than window size ($window_size_points) for variable $variable_name"
+                continue
+            end
+            
+            # Calculate normalized deviations using MAD filter
+            normalized_deviations = _calculate_mad_normalized_deviations(variable_data, window_size_points)
+            
+            # Accumulate deviations within this group
+            num_variables_in_group += 1
+            group_combined_deviations .+= normalized_deviations
         end
         
-        # Get data for this variable
-        data_values = @view high_frequency_data[Var=At(var)]
-        n_points = length(data_values)
-        
-        if n_points < window_size
-            @warn "Data length ($n_points) smaller than window size ($window_size) for variable $var"
-            continue
-        end
-        
-        # Calculate rolling median
-        rolling_median = calculate_rolling_median(data_values, window_size)
-        
-        # Calculate absolute deviations from rolling median
-        df_di = abs.(data_values .- rolling_median)
-        
-        # Calculate MAD (Median Absolute Deviation)
-        df_MAD = calculate_rolling_median(df_di, window_size)
-        
-        # Apply pattern detection using neighboring points
-        df_hat = calculate_pattern_deviation(df_di)
-        
-        # Normalize by MAD
-        df_hat_MAD = df_hat ./ (df_MAD .+ 1e-10)  # Add small epsilon to avoid division by zero
-        
-        # Store normalized deviations for combined spike detection
-        variables_processed += 1
-        if combined_deviation === nothing
-            combined_deviation = copy(df_hat_MAD)
+        # Apply spike detection for this group if any variables were processed
+        if num_variables_in_group > 0
+            _apply_spike_threshold_and_remove_for_group!(var_group, high_frequency_data, 
+                                                        group_combined_deviations, group_idx)
         else
-            combined_deviation .+= df_hat_MAD
+            @warn "No variables were processed in group $group_idx: '$(var_group.name)'"
         end
-    end
-    
-    # Check if any variables were processed
-    if combined_deviation === nothing
-        @warn "No variables were processed for spike detection"
-        return
-    end
-    
-    # Identify spikes based on combined threshold
-    spike_threshold_normalized = despiking.spike_threshold / 0.6745
-    spike_condition = abs.(combined_deviation) .>= spike_threshold_normalized
-    
-    # Count and remove spikes
-    n_spikes = sum(spike_condition)
-    if n_spikes > 0
-        println("Detected $n_spikes spikes, setting to NaN")
-        
-        # Set spikes to NaN for all processed variables
-        for var in despiking.variables
-            if var ∈ dims(high_frequency_data, Var)
-                data_values = @view high_frequency_data[Var=At(var)]
-                data_values[spike_condition] .= NaN
-            end
-        end
-        
-        # Also check for H2O variables (corrected or original)
-        h2o_vars = [:LI_H2Om_corr, :LI_H2Om, :H2O]
-        for h2o_var in h2o_vars
-            if h2o_var ∈ dims(high_frequency_data, Var)
-                # Calculate H2O-specific spike detection
-                data_values = @view high_frequency_data[Var=At(h2o_var)]
-                rolling_median = calculate_rolling_median(data_values, window_size)
-                df_di = abs.(data_values .- rolling_median)
-                df_MAD = calculate_rolling_median(df_di, window_size)
-                df_hat = calculate_pattern_deviation(df_di)
-                df_hat_MAD = df_hat ./ (df_MAD .+ 1e-10)
-                
-                h2o_spike_condition = abs.(df_hat_MAD) .>= spike_threshold_normalized
-                combined_h2o_spikes = spike_condition .| h2o_spike_condition
-                
-                n_h2o_spikes = sum(combined_h2o_spikes) - sum(spike_condition)
-                if n_h2o_spikes > 0
-                    println("Detected additional $n_h2o_spikes H2O spikes for $h2o_var")
-                end
-                
-                data_values[combined_h2o_spikes] .= NaN
-                break  # Only process the first H2O variable found
-            end
-        end
-    else
-        println("No spikes detected")
     end
 end
 
@@ -219,4 +202,95 @@ function calculate_pattern_deviation(df_di::AbstractVector)
     end
     
     return df_hat
+end
+
+# Helper functions for improved readability
+
+"""
+    _calculate_window_size(high_frequency_data::DimArray, window_minutes::Float64) -> Int
+
+Calculate window size in data points from time dimension and desired window duration.
+"""
+function _calculate_window_size(high_frequency_data::DimArray, window_minutes::Float64)
+    time_dimension = dims(high_frequency_data, Ti)
+    
+    if length(time_dimension) < 2
+        @warn "Insufficient data points for despiking"
+        return 3  # Minimum window size
+    end
+    
+    # Calculate sampling frequency (assuming regular intervals)
+    time_step = time_dimension[2] - time_dimension[1]
+    # FIXME: Preliminary since time dimension format is not yet finalized
+    time_step_seconds = Dates.value(time_step) / 1000.0  # Convert milliseconds to seconds
+    sampling_frequency_hz = 1.0 / time_step_seconds
+    
+    # Calculate window size in data points
+    window_size_points = round(Int, window_minutes * 60 * sampling_frequency_hz)
+    window_size_points = max(window_size_points, 3)  # Ensure minimum window size
+    
+    # Adjust window size if data is too small (use at most 1/3 of data length)
+    total_data_points = length(time_dimension)
+    if window_size_points > total_data_points ÷ 3
+        window_size_points = max(total_data_points ÷ 3, 3)
+        @warn "Adjusted window size to $window_size_points points due to limited data ($total_data_points points)"
+    end
+    
+    return window_size_points
+end
+
+"""
+    _calculate_mad_normalized_deviations(variable_data::AbstractVector, window_size_points::Int) -> Vector
+
+Calculate MAD-normalized deviations for a single variable using the Sigmund et al. algorithm.
+"""
+function _calculate_mad_normalized_deviations(variable_data::AbstractVector, window_size_points::Int)
+    # Calculate rolling median
+    rolling_median_values = calculate_rolling_median(variable_data, window_size_points)
+    
+    # Calculate absolute deviations from rolling median
+    absolute_deviations = abs.(variable_data .- rolling_median_values)
+    
+    # Calculate MAD (Median Absolute Deviation)
+    mad_values = calculate_rolling_median(absolute_deviations, window_size_points)
+    
+    # Apply pattern detection using neighboring points
+    pattern_adjusted_deviations = calculate_pattern_deviation(absolute_deviations)
+    
+    # Normalize by MAD with small epsilon to avoid division by zero
+    epsilon = 1e-10
+    normalized_deviations = pattern_adjusted_deviations ./ (mad_values .+ epsilon)
+    
+    return normalized_deviations
+end
+
+"""
+    _apply_spike_threshold_and_remove_for_group!(var_group::VariableGroup, high_frequency_data::DimArray, 
+                                               group_combined_deviations::Vector, group_idx::Int)
+
+Apply spike detection threshold for a specific variable group and remove detected spikes by setting them to NaN.
+Uses the group's own spike threshold.
+"""
+function _apply_spike_threshold_and_remove_for_group!(var_group::VariableGroup, high_frequency_data::DimArray, 
+                                                     group_combined_deviations::Vector, group_idx::Int)
+    # Apply threshold (normalized by 0.6745 factor from Sigmund et al.)
+    threshold_normalized = var_group.spike_threshold / 0.6745
+    spike_indices = abs.(group_combined_deviations) .>= threshold_normalized
+    
+    # Count detected spikes
+    num_spikes_detected = sum(spike_indices)
+    
+    if num_spikes_detected > 0
+        println("    Group $group_idx ('$(var_group.name)'): Detected $num_spikes_detected spikes, setting to NaN")
+        
+        # Set spikes to NaN for all variables in this group
+        for variable_name in var_group.variables
+            if variable_name ∈ dims(high_frequency_data, Var)
+                variable_data = @view high_frequency_data[Var=At(variable_name)]
+                variable_data[spike_indices] .= NaN
+            end
+        end
+    else
+        println("    Group $group_idx ('$(var_group.name)'): No spikes detected")
+    end
 end
