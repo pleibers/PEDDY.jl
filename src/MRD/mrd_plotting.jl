@@ -22,7 +22,7 @@ Return the generic plotting payload for any MRD type:
 - `times::AbstractVector`: mid-times for each block
 
 Other MRD types should overload this if they do not store results
-in the same shape as `OrthogonalMRD`.
+in the same shape as `Non-OrthogonalMRD`.
 """
 function mrd_plot_payload(m::PEDDY.AbstractMRD)
     res = try
@@ -79,36 +79,43 @@ end
     payload = mrd_plot_payload(m)
     scales, mat, times = payload.scales, payload.mrd, payload.times
 
+    # Remove custom/alias kwargs from plotattributes to avoid leaking unsupported keys
+    delete!(plotattributes, :kind)
+    delete!(plotattributes, :logscale)
+    delete!(plotattributes, :colormap)
+    delete!(plotattributes, :xlabel)
+    delete!(plotattributes, :ylabel)
+
     @assert size(mat, 1) == length(scales)
     @assert size(mat, 2) == length(times)
 
     if kind == :heatmap
         seriestype := :heatmap
-        xguide := xlabel
-        yguide := ylabel
-        legend := false
+        xguide --> xlabel
+        yguide --> ylabel
+        legend --> false
         if title !== nothing
-            title := title
+            title --> title
         end
         if logscale
-            yscale := :log10
+            yscale --> :log10
         end
         if clims !== nothing
-            clims := clims
+            clims --> clims
         end
-        seriescolor := colormap
+        seriescolor --> colormap
         # (x, y, z) where z[i,j] corresponds to y[i], x[j]
         times, scales, mat
     elseif kind == :summary
         seriestype := :line
-        xguide := ylabel  # x is scale axis here
-        yguide := "Contribution"
-        legend := :topright
+        xguide --> ylabel  # x is scale axis here
+        yguide --> "Contribution"
+        legend --> :topright
         if title !== nothing
-            title := title
+            title --> title
         end
         if logscale
-            xscale := :log10
+            xscale --> :log10
         end
         summ = _per_scale_summary(mat)
         # Main median line

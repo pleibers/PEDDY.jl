@@ -1,9 +1,9 @@
-export OrthogonalMRD, get_mrd_results
+export Non-OrthogonalMRD, get_mrd_results
 
 using Dates
 
 """
-    OrthogonalMRD(; M=11, Mx=0, shift=256, a=:Uz, b=:Ts, gap_threshold_seconds=10.0, normalize=false)
+    Non-OrthogonalMRD(; M=11, Mx=0, shift=256, a=:Uz, b=:Ts, gap_threshold_seconds=10.0, normalize=false)
 
 Multi-Resolution Decomposition (MRD) step adapted from the pepy project (Vickers & Mahrt 2003; Howell & Mahrt 1997).
 
@@ -25,7 +25,7 @@ Minimal results are stored inside the struct and can be retrieved with `get_mrd_
 - Uses `mean_skipnan` to ignore NaNs, consistent with the package style.
 - Does not mutate the data; only computes decomposition and stores results.
 """
-mutable struct OrthogonalMRD{T<:Real} <: AbstractMRD
+mutable struct Non-OrthogonalMRD{T<:Real} <: AbstractMRD
     M::Int
     Mx::Int
     shift::Int
@@ -35,7 +35,7 @@ mutable struct OrthogonalMRD{T<:Real} <: AbstractMRD
     normalize::Bool
     results::Union{Nothing, NamedTuple}
 
-    function OrthogonalMRD(; number_type=Float64, M::Int=11, Mx::Int=0, shift::Int=256,
+    function Non-OrthogonalMRD(; number_type=Float64, M::Int=11, Mx::Int=0, shift::Int=256,
                            a::Symbol=:Uz, b::Symbol=:Ts,
                            gap_threshold_seconds::Real=10.0,
                            normalize::Bool=false)
@@ -45,7 +45,7 @@ mutable struct OrthogonalMRD{T<:Real} <: AbstractMRD
 end
 
 """
-    decompose!(m::OrthogonalMRD, high_frequency_data::DimArray, low_frequency_data; kwargs...)
+    decompose!(m::Non-OrthogonalMRD, high_frequency_data::DimArray, low_frequency_data; kwargs...)
 
 Run the MRD on high-frequency data for variables `m.a` and `m.b`.
 Stores results in `m.results` as a NamedTuple with fields:
@@ -53,7 +53,7 @@ Stores results in `m.results` as a NamedTuple with fields:
 - `mrd`: Matrix of size (M, nblocks) with MRD per scale and block
 - `times`: Vector of midpoint times for each block
 """
-function decompose!(m::OrthogonalMRD, high_frequency_data::DimArray, low_frequency_data; kwargs...)
+function decompose!(m::Non-OrthogonalMRD, high_frequency_data::DimArray, low_frequency_data; kwargs...)
     # Validate variables exist
     for var in (m.a, m.b)
         if var ∉ dims(high_frequency_data, Var)
@@ -153,11 +153,11 @@ function decompose!(m::OrthogonalMRD, high_frequency_data::DimArray, low_frequen
 end
 
 """
-    get_mrd_results(m::OrthogonalMRD)
+    get_mrd_results(m::Non-OrthogonalMRD)
 
 Return MRD results stored in the step, or `nothing` if not computed.
 """
-get_mrd_results(m::OrthogonalMRD) = m.results
+get_mrd_results(m::Non-OrthogonalMRD) = m.results
 
 
 # -------------------- Internals --------------------
