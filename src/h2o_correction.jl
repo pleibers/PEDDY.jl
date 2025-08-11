@@ -5,6 +5,8 @@ export get_calibration_coefficients
 using Polynomials
 using Statistics
 
+ 
+
 """
     get_calibration_coefficients(sensor)
 
@@ -105,8 +107,8 @@ function resample_to_low_frequency(high_frequency_data, h2o_variable_name, press
         end_index = min(low_freq_index * high_freq_points_per_low_freq, length(high_freq_time))
 
         if start_index <= length(high_freq_time)
-            low_frequency_h2o_averages[low_freq_index] = mean(skipmissing(high_frequency_data[Ti=start_index:end_index, Var=At(h2o_variable_name)]))
-            low_frequency_pressure_averages[low_freq_index] = mean(skipmissing(high_frequency_data[Ti=start_index:end_index, Var=At(pressure_variable_name)]))
+            low_frequency_h2o_averages[low_freq_index] = mean_skipnan(high_frequency_data[Ti=start_index:end_index, Var=At(h2o_variable_name)])
+            low_frequency_pressure_averages[low_freq_index] = mean_skipnan(high_frequency_data[Ti=start_index:end_index, Var=At(pressure_variable_name)])
         else
             low_frequency_h2o_averages[low_freq_index] = NaN
             low_frequency_pressure_averages[low_freq_index] = NaN

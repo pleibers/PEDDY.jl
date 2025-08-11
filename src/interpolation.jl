@@ -131,11 +131,11 @@ end
 """
     identify_gap_groups(missing_mask::AbstractVector{Bool})
 
-Identify groups of consecutive missing values and return their start and end indices.
+Identify groups of consecutive NaN values and return their start and end indices.
 Replicates the Python pandas groupby logic for consecutive NaN detection.
 
 # Arguments
-- `missing_mask`: Boolean vector indicating missing value positions
+- `missing_mask`: Boolean vector indicating NaN positions
 
 # Returns
 - Vector of tuples (start_idx, end_idx) for each consecutive missing group
@@ -214,7 +214,7 @@ function find_valid_neighbors(data::AbstractArray, start_idx::Int, end_idx::Int,
     search_idx = start_idx - 1
     points_before = 0
     while search_idx >= 1 && points_before < points_needed
-        if !ismissing(data[search_idx])
+        if !isnan(data[search_idx])
             pushfirst!(valid_indices, search_idx)
             pushfirst!(valid_values, data[search_idx])
             points_before += 1
@@ -226,7 +226,7 @@ function find_valid_neighbors(data::AbstractArray, start_idx::Int, end_idx::Int,
     search_idx = end_idx + 1
     points_after = 0
     while search_idx <= n && points_after < points_needed
-        if !ismissing(data[search_idx])
+        if !isnan(data[search_idx])
             push!(valid_indices, search_idx)
             push!(valid_values, data[search_idx])
             points_after += 1

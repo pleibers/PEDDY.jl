@@ -47,6 +47,19 @@ const OptionalPipelineStep = Union{Nothing,PipelineStep}
 @dim Var "Variables"
 export Var
 
+# Compute mean while ignoring NaN values. Returns NaN if all values are NaN.
+function mean_skipnan(arr)
+    s = zero(eltype(arr))
+    c = 0
+    @inbounds for v in arr
+        if !isnan(v)
+            s += v
+            c += 1
+        end
+    end
+    return c == 0 ? NaN : s / c
+end
+
 include("Sensors/sensors.jl")
 
 include("pipeline.jl")

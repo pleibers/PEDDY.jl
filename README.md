@@ -15,6 +15,11 @@ PEDDY.jl provides a comprehensive framework for eddy covariance data processing,
 
 A more exhaustive documentation is available at [PEDDY.jl](MISSING) or build the documentation with `docs/make.jl`.
 
+## Roadmap
+
+- [ ] Instead of using NaNs for missing values, actually use missing.
+- [ ] Implement further MRD algorithms
+
 ## Pipeline Steps
 
 The pipeline always runs in the following order:
@@ -106,4 +111,4 @@ See `LICENSE` file for details.
 
 ## Acknowledgments
 
-This package builds upon established eddy covariance processing methods and incorporates algorithms from the scientific community. The H₂O calibration implementation is based on established gas analyzer correction techniques.
+This package builds upon established eddy covariance processing methods and incorporates algorithms from the scientific community.

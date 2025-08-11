@@ -3,6 +3,7 @@ export WindDoubleRotation
 using Statistics
 using Dates
 
+ 
 """
     WindDoubleRotation(; block_duration_minutes=30.0, variables=[:Ux, :Uy, :Uz])
 
@@ -170,8 +171,8 @@ Returns rotated wind matrix and rotation angles (theta, phi).
 """
 function _apply_double_rotation(wind_matrix::Matrix{N}) where {N}
     # First rotation: set mean(v) = 0
-    mean_u = Statistics.mean(skipmissing(wind_matrix[:, 1]))
-    mean_v = Statistics.mean(skipmissing(wind_matrix[:, 2]))
+    mean_u = mean_skipnan(wind_matrix[:, 1])
+    mean_v = mean_skipnan(wind_matrix[:, 2])
     
     theta = atan(mean_v, mean_u)
     
@@ -186,8 +187,8 @@ function _apply_double_rotation(wind_matrix::Matrix{N}) where {N}
     wind1 = wind_matrix * rot1
     
     # Second rotation: set mean(w) = 0
-    mean_u1 = Statistics.mean(skipmissing(wind1[:, 1]))
-    mean_w1 = Statistics.mean(skipmissing(wind1[:, 3]))
+    mean_u1 = mean_skipnan(wind1[:, 1])
+    mean_w1 = mean_skipnan(wind1[:, 3])
     
     phi = atan(mean_w1, mean_u1)
     
