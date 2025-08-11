@@ -243,8 +243,7 @@ function _calculate_window_size(high_frequency_data::DimArray, window_minutes)
     
     # Calculate sampling frequency (assuming regular intervals)
     time_step = time_dimension[2] - time_dimension[1]
-    # FIXME: Preliminary since time dimension format is not yet finalized
-    time_step_seconds = Dates.value(time_step) / 1000.0  # Convert milliseconds to seconds
+    time_step_seconds = Dates.value(Milliseconds(time_step)) / 1000.0  # Convert milliseconds to seconds (be sure to use milliseconds)
     sampling_frequency_hz = 1.0 / time_step_seconds
     
     # Calculate window size in data points
