@@ -74,15 +74,15 @@ function process(pipeline::EddyPipeline; kwargs...)
     return finish!(prog; desc="PEDDY is done cleaning your data!", spinner="🎉")
 end
 
-function check_data(data::DimArray, sensor::AbstractSensor)
+function check_data(high_frequency_data::DimArray, low_frequency_data::DimArray, sensor::AbstractSensor)
     needed_cols = needs_cols(sensor)
-    if !(:Var in name.(dims(data)))
-        throw(ArgumentError("Data must have a Var dimension"))
+    if !(:Var in name.(dims(high_frequency_data)))
+        throw(ArgumentError("High frequency data must have a Var dimension"))
     end
-    if !(:Ti in name.(dims(data)))
-        throw(ArgumentError("Data must have a Time dimension"))
+    if !(:Ti in name.(dims(high_frequency_data)))
+        throw(ArgumentError("High frequency data must have a Time dimension"))
     end
-    var_names = val(dims(data, :Var))
+    var_names = val(dims(high_frequency_data, :Var))
     for col in needed_cols
         if !(col in var_names)
             throw(ArgumentError("Var dimension must have a $col variable"))

@@ -71,8 +71,8 @@ include("h2o_correction.jl")
 include("despiking.jl")
 include("interpolation.jl")
 include("double_rotation.jl")
-include("mrd.jl")
-include("mrd_plotting.jl")
+include("MRD/mrd.jl")
+include("MRD/mrd_plotting.jl")
 
 export AbstractInput, AbstractSensor, AbstractQC, AbstractDespiking, AbstractGapFilling,
        AbstractGasAnalyzer, AbstractDoubleRotation, AbstractMRD, AbstractOutput
