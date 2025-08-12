@@ -69,8 +69,8 @@ end
 #   title = nothing
 #   xlabel = "Time"
 #   ylabel = "Scale (s)"
-@recipe function f(m::PEDDY.AbstractMRD; kind::Symbol = :heatmap,
-                                 logscale::Bool = true,
+@recipe function f(m::PEDDY.AbstractMRD; kind = :heatmap,
+                                 logscale = true,
                                  clims = nothing,
                                  colormap = :viridis,
                                  title = nothing,
