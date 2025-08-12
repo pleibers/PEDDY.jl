@@ -31,19 +31,17 @@ using DimensionalData
         # Create realistic test data with gaps
         test_data = randn(n_points, n_vars) .* 2 .+ 10  # Wind-like data
 
-        # Add systematic gaps to test interpolation
-        # Column mapping: 1=:diag, 2=:Ux, 3=:Uy, 4=:Uz, 5=:Ts
-        # Small gaps that should be filled (≤10 points)
-        test_data[10:12, 2] .= NaN  # Ux gap (size 3)
-        test_data[20:22, 3] .= NaN  # Uy gap (size 3) 
-        test_data[30:32, 4] .= NaN  # Uz gap (size 3)
-        test_data[40:42, 5] .= NaN  # Ts gap (size 3)
-
-        # Large gaps that should NOT be filled (>10 points)
-        test_data[15:30, 2] .= NaN  # Large Ux gap (size 16)
-
         # Create DimArrays
         hd = DimArray(test_data, (Ti(1:n_points), Var(needed_cols)))
+         # Add systematic gaps to test interpolation
+        # Small gaps that should be filled (≤10 points)
+        hd[Ti=10:12, Var=At(:Ux)] .= NaN  # Ux gap (size 3)
+        hd[Ti=20:22, Var=At(:Uy)] .= NaN  # Uy gap (size 3) 
+        hd[Ti=30:32, Var=At(:Uz)] .= NaN  # Uz gap (size 3)
+        hd[Ti=40:42, Var=At(:Ts)] .= NaN  # Ts gap (size 3)
+        # Large gaps that should NOT be filled (>10 points)
+        hd[Ti=15:30, Var=At(:Ux)] .= NaN  # Large Ux gap (size 16)
+
         ld = DimArray(rand(10, n_vars), (Ti(1:10), Var(needed_cols)))  # Dummy low freq data
 
         # Store original data for comparison
@@ -109,14 +107,15 @@ using DimensionalData
         # Column mapping: 1=:diag, 2=:Ux, 3=:Uy, 4=:Uz, 5=:Ts
 
         # Add some gaps for interpolation testing
-        test_data[5:7, 2] .= NaN   # Small Ux gap (size 3)
-        test_data[10:25, 3] .= NaN  # Large Uy gap (size 16) that should not be filled
 
-        # Set extreme values at indices that don't overlap with gaps
-        test_data[8, 2] = 150.0   # Extreme Ux value (outside gap)
-        test_data[26, 3] = -150.0  # Extreme Uy value (outside gap)
 
         hd = DimArray(test_data, (Ti(1:n_points), Var(needed_cols)))
+        hd[Ti=5:7, Var=At(:Ux)] .= NaN   # Small Ux gap (size 3)
+        hd[Ti=10:25, Var=At(:Uy)] .= NaN  # Large Uy gap (size 16) that should not be filled
+
+        # Set extreme values at indices that don't overlap with gaps
+        hd[Ti=8, Var=At(:Ux)] = 150.0   # Extreme Ux value (outside gap)
+        hd[Ti=26, Var=At(:Uy)] = -150.0  # Extreme Uy value (outside gap)
         ld = DimArray(rand(5, n_vars), (Ti(1:5), Var(needed_cols)))
 
         # Set up pipeline with QC and gap filling

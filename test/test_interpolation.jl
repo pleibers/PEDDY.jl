@@ -110,16 +110,14 @@ using Statistics
         n_points = 20
         n_vars = length(needed_cols)
 
-        # Create data with some NaN gaps
+        # Create random data
         test_data = rand(n_points, n_vars)
-        # Column mapping: 1=:diag, 2=:Ux, 3=:Uy, 4=:Uz, 5=:Ts
-        # Add gaps to Ux (column 2)
-        test_data[5:6, 2] .= NaN  # Small gap (size 2)
-        test_data[10:15, 2] .= NaN  # Large gap (size 6)
-        # Add gaps to Uy (column 3)  
-        test_data[8:9, 3] .= NaN  # Small gap (size 2)
 
         hd = DimArray(test_data, (Ti(1:n_points), Var(needed_cols)))
+        # Add Gaps
+        hd[Ti=5:6,Var=At(:Ux)].= NaN # Small Gap
+        hd[Ti=10:15,Var=At(:Ux)] .= NaN # Large Gap
+        hd[Ti=8:9,Var=At(:Uy)].= NaN # Exactly max gap size
 
         # Test gap filling
         gap_filling = PEDDY.GeneralInterpolation(; max_gap_size=3)

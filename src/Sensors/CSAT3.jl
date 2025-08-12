@@ -16,8 +16,8 @@ function check_diagnostics!(sensor::CSAT3, data::DimArray)
         return false
     end
     for i in eachindex(view(data, Var(At(:diag_csat))))
-        if !discard_record!(i, data[i, :diag_csat], :diag_csat) # so we only call it once
-            discard_record!(i, data[i, :diag_sonic], :diag_sonic)
+        if !discard_record!(i, data[Ti=i, Var=At(:diag_csat)], :diag_csat) # so we only call it once
+            discard_record!(i, data[Ti=i, Var=At(:diag_sonic)], :diag_sonic)
         end
     end
 end

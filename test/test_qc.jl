@@ -69,14 +69,15 @@ using DimensionalData
         # Create test data with known out-of-bounds values
         test_data = randn(n_points, n_vars) .* 2 .+ 5  # Reasonable base data
 
-        # Add extreme values that should be flagged
-        # Column mapping: 1=:diag, 2=:Ux, 3=:Uy, 4=:Uz, 5=:Ts
-        test_data[5, 2] = 150.0   # Extreme Ux (> 100 m/s)
-        test_data[10, 3] = -120.0  # Extreme Uy (< -100 m/s)
-        test_data[15, 4] = 200.0   # Extreme Uz (> 50 m/s)
-        test_data[8, 5] = -60.0    # Extreme Ts (< -50 C, truly out of bounds)
-
         hd = DimArray(test_data, (Ti(1:n_points), Var(needed_cols)))
+        # Extreme Ux (> 100 m/s)
+        hd[Ti=5,Var=At(:Ux)] = 150.0
+        # Extreme Uy (< -100 m/s)
+        hd[Ti=10, Var=At(:Uy)] = -120.0
+        # Extreme Uz (> 50 m/s)
+        hd[Ti=15,Var=At(:Uz)] = 200.0
+        # Extreme Ts (< -50 C, truly out of bounds)
+        hd[Ti=8, Var=At(:Ts)] = -60.0
         ld = DimArray(rand(5, n_vars), (Ti(1:5), Var(needed_cols)))
 
         # Store original extreme values for verification (after setting them)
@@ -143,11 +144,11 @@ using DimensionalData
 
         # Create data exactly at boundaries
         test_data = zeros(3, length(needed_cols))
-        test_data[1, 1] = 100.0   # Exactly at Ux upper bound
-        test_data[2, 1] = -100.0  # Exactly at Ux lower bound
-        test_data[3, 1] = 99.9    # Just within bounds
 
         hd = DimArray(test_data, (Ti(1:3), Var(needed_cols)))
+        hd[Ti=1, Var=At(:Ux)] = 100.0   # Exactly at Ux upper bound
+        hd[Ti=2, Var=At(:Ux)] = -100.0  # Exactly at Ux lower bound
+        hd[Ti=3, Var=At(:Ux)] = 99.9    # Just within bounds
         ld = DimArray(rand(2, length(needed_cols)), (Ti(1:2), Var(needed_cols)))
 
         qc = PEDDY.PhysicsBoundsCheck()
@@ -190,11 +191,10 @@ using DimensionalData
 
         # Create mixed data: some normal, some extreme
         test_data = randn(n_points, n_vars) .* 3 .+ 2  # Mostly normal
-        # Column mapping: 1=:diag, 2=:Ux, 3=:Uy, 4=:Uz, 5=:Ts
-        test_data[7, 2] = 150.0   # One extreme Ux value
-        test_data[12, 3] = -150.0  # Another extreme Uy value
 
         hd = DimArray(test_data, (Ti(1:n_points), Var(needed_cols)))
+        hd[Ti=7, Var=At(:Ux)] = 150.0
+        hd[Ti=12, Var=At(:Uy)] = -150
         ld = DimArray(rand(5, n_vars), (Ti(1:5), Var(needed_cols)))
 
         # Set up pipeline with QC only
