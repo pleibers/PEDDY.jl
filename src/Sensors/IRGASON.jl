@@ -9,7 +9,7 @@ end
 # Note: IRGASON sensors do not have H2O calibration coefficients.
 # H2O calibration is specific to LICOR gas analyzers (LI-COR Inc.).
 
-function needs_cols(sensor::IRGASON)
+function needs_data_cols(sensor::IRGASON)
     return (:diag_sonic, :diag_gas, :Ux, :Uy, :Uz, :Ts, :CO2, :H2O, :T, :P)
 end
 has_variables(sensor::IRGASON) = (:Ux, :Uy, :Uz, :Ts, :CO2, :H2O, :T, :P)

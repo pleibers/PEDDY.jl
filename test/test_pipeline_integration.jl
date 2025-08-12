@@ -24,7 +24,7 @@ using DimensionalData
     @testset "Full Pipeline with Interpolation" begin
         # Create test sensor and data
         sensor = PEDDY.CSAT3()
-        needed_cols = collect(PEDDY.needs_cols(sensor))  # Convert tuple to vector
+        needed_cols = collect(PEDDY.needs_data_cols(sensor))  # Convert tuple to vector
         n_points = 50
         n_vars = length(needed_cols)
 
@@ -100,7 +100,7 @@ using DimensionalData
     @testset "Pipeline with Multiple Steps" begin
         # Test pipeline with QC + interpolation
         sensor = PEDDY.CSAT3()
-        needed_cols = collect(PEDDY.needs_cols(sensor))  # Convert tuple to vector
+        needed_cols = collect(PEDDY.needs_data_cols(sensor))  # Convert tuple to vector
         n_points = 30
         n_vars = length(needed_cols)
 
@@ -152,7 +152,7 @@ using DimensionalData
     @testset "Different Interpolation Methods in Pipeline" begin
         # Test pipeline with different interpolation methods
         sensor = PEDDY.CSAT3()
-        needed_cols = collect(PEDDY.needs_cols(sensor))  # Convert tuple to vector
+        needed_cols = collect(PEDDY.needs_data_cols(sensor))  # Convert tuple to vector
         n_points = 20
         n_vars = length(needed_cols)
 

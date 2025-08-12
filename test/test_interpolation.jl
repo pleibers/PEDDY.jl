@@ -106,7 +106,7 @@ using Statistics
     @testset "DimArray Integration" begin
         # Create test DimArray with gaps
         sensor = PEDDY.CSAT3()
-        needed_cols = collect(PEDDY.needs_cols(sensor))  # Convert tuple to vector
+        needed_cols = collect(PEDDY.needs_data_cols(sensor))  # Convert tuple to vector
         n_points = 20
         n_vars = length(needed_cols)
 

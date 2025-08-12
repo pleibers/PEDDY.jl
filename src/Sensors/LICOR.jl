@@ -68,7 +68,7 @@ function default_calibration_coefficients(sensor_name::String="", year=nothing; 
     return coeffs
 end
 
-needs_cols(sensor::LICOR) = (:diag_sonic, :diag_gas, :Ux, :Uy, :Uz, :Ts, :CO2, :H2O, :T, :P)
+needs_data_cols(sensor::LICOR) = (:diag_sonic, :diag_gas, :Ux, :Uy, :Uz, :Ts, :CO2, :H2O, :T, :P)
 has_variables(sensor::LICOR) = (:Ux, :Uy, :Uz, :Ts, :CO2, :H2O, :T, :P)
 
 function check_diagnostics!(sensor::LICOR, data::DimArray)

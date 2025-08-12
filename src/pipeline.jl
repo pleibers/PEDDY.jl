@@ -75,7 +75,7 @@ function process(pipeline::EddyPipeline; kwargs...)
 end
 
 function check_data(high_frequency_data::DimArray, low_frequency_data::DimArray, sensor::AbstractSensor)
-    needed_cols = needs_cols(sensor)
+    needed_cols = needs_data_cols(sensor)
     if !(:Var in name.(dims(high_frequency_data)))
         throw(ArgumentError("High frequency data must have a Var dimension"))
     end

@@ -2,7 +2,7 @@
     diag_sonic::Int = 64
     diag_csat::Int = 4096
 end
-needs_cols(sensor::CSAT3) = (:diag_sonic, :diag_csat, :Ux, :Uy, :Uz, :Ts)
+needs_data_cols(sensor::CSAT3) = (:diag_sonic, :diag_csat, :Ux, :Uy, :Uz, :Ts)
 has_variables(sensor::CSAT3) = (:Ux, :Uy, :Uz, :Ts)
 
 function check_diagnostics!(sensor::CSAT3, data::DimArray)

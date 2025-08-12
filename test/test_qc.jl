@@ -62,7 +62,7 @@ using DimensionalData
     @testset "Quality Control Application" begin
         # Create test data with some out-of-bounds values
         sensor = PEDDY.CSAT3()
-        needed_cols = collect(PEDDY.needs_cols(sensor))  # Convert tuple to vector
+        needed_cols = collect(PEDDY.needs_data_cols(sensor))  # Convert tuple to vector
         n_points = 20
         n_vars = length(needed_cols)
 
@@ -110,7 +110,7 @@ using DimensionalData
     @testset "Custom Bounds Application" begin
         # Test with custom, more restrictive bounds
         sensor = PEDDY.CSAT3()
-        needed_cols = collect(PEDDY.needs_cols(sensor))  # Convert tuple to vector
+        needed_cols = collect(PEDDY.needs_data_cols(sensor))  # Convert tuple to vector
         n_points = 10
         n_vars = length(needed_cols)
 
@@ -139,7 +139,7 @@ using DimensionalData
     @testset "Edge Cases" begin
         # Test with boundary values
         sensor = PEDDY.CSAT3()
-        needed_cols = collect(PEDDY.needs_cols(sensor))  # Convert tuple to vector
+        needed_cols = collect(PEDDY.needs_data_cols(sensor))  # Convert tuple to vector
 
         # Create data exactly at boundaries
         test_data = zeros(3, length(needed_cols))
@@ -162,7 +162,7 @@ using DimensionalData
     @testset "No QC (Nothing) Case" begin
         # Test that passing nothing for QC does nothing
         sensor = PEDDY.CSAT3()
-        needed_cols = collect(PEDDY.needs_cols(sensor))  # Convert tuple to vector
+        needed_cols = collect(PEDDY.needs_data_cols(sensor))  # Convert tuple to vector
         n_points = 5
         n_vars = length(needed_cols)
 
@@ -184,7 +184,7 @@ using DimensionalData
     @testset "Integration with Pipeline" begin
         # Test QC integration in full pipeline
         sensor = PEDDY.CSAT3()
-        needed_cols = collect(PEDDY.needs_cols(sensor))  # Convert tuple to vector
+        needed_cols = collect(PEDDY.needs_data_cols(sensor))  # Convert tuple to vector
         n_points = 15
         n_vars = length(needed_cols)
 
