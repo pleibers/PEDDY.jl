@@ -198,12 +198,10 @@ using DimensionalData
         ld = DimArray(rand(5, n_vars), (Ti(1:5), Var(needed_cols)))
 
         # Set up pipeline with QC only
-        input = PEDDY.PassData(hd, ld)
         output = PEDDY.MemoryOutput()
         qc = PEDDY.PhysicsBoundsCheck()
 
         pipeline = PEDDY.EddyPipeline(; sensor=sensor,
-                                      input=input,
                                       quality_control=qc,
                                       despiking=nothing,
                                       gap_filling=nothing,
@@ -213,7 +211,7 @@ using DimensionalData
                                       output=output)
 
         # Run pipeline
-        PEDDY.process(pipeline)
+        PEDDY.process!(pipeline, hd, ld)
 
         # Get results
         processed_hf, processed_lf = PEDDY.get_results(output)

@@ -1,15 +1,14 @@
 export EddyPipeline
-export process
+export process!
 export check_data
 
 using ProgressMeter
 
-@kwdef struct EddyPipeline{SI<:AbstractSensor,I<:AbstractInput,QC<:OptionalPipelineStep,
+@kwdef struct EddyPipeline{SI<:AbstractSensor,QC<:OptionalPipelineStep,
                            D<:OptionalPipelineStep,G<:OptionalPipelineStep,
                            GA<:OptionalPipelineStep,DR<:OptionalPipelineStep,
                            MRD<:OptionalPipelineStep,O<:AbstractOutput}
     sensor::SI
-    input::I
     quality_control::QC
     gas_analyzer::GA
     despiking::D
@@ -28,7 +27,9 @@ function correct_gas_analyzer!(gas_analyzer::Nothing, high_frequency_data,
                                low_frequency_data, sensor::AbstractSensor; kwargs...)
     return nothing
 end
-despike!(despiking::Nothing, high_frequency_data, low_frequency_data; kwargs...) = nothing
+function despike!(despiking::Nothing, high_frequency_data, low_frequency_data; kwargs...)
+    return nothing
+end
 function fill_gaps!(gap_filling::Nothing, high_frequency_data, low_frequency_data;
                     kwargs...)
     return nothing
@@ -40,13 +41,10 @@ end
 decompose!(mrd::Nothing, high_frequency_data, low_frequency_data; kwargs...) = nothing
 
 # Data should be in the correct format
-function process(pipeline::EddyPipeline; kwargs...)
+function process!(pipeline::EddyPipeline, high_frequency_data::DimArray, low_frequency_data::DimArray; kwargs...)
     prog = ProgressUnknown(;desc="PEDDY is cleaning your data...", spinner=true)
 
-    next!(prog; showvalues=[("Status", "Reading Data...")], spinner="📖")
-    high_frequency_data, low_frequency_data = read_data(pipeline.input; kwargs...)
     check_data(high_frequency_data, low_frequency_data, pipeline.sensor)
-    # FAQ: Should we check the low frequency data?
 
     next!(prog; showvalues=[("Status", "Performing Quality Control...")], spinner="🔬")
     quality_control!(pipeline.quality_control, high_frequency_data, low_frequency_data,
@@ -75,6 +73,8 @@ function process(pipeline::EddyPipeline; kwargs...)
 end
 
 function check_data(high_frequency_data::DimArray, low_frequency_data::DimArray, sensor::AbstractSensor)
+    # FAQ: Should we check the low frequency data?
+
     needed_cols = needs_data_cols(sensor)
     if !(:Var in name.(dims(high_frequency_data)))
         throw(ArgumentError("High frequency data must have a Var dimension"))

@@ -48,7 +48,6 @@ using DimensionalData
         original_data = copy(test_data)
 
         # Set up pipeline components
-        input = PEDDY.PassData(hd, ld)
         output = PEDDY.MemoryOutput()
         gap_filling = PEDDY.GeneralInterpolation(; max_gap_size=10,
                                                  variables=needed_cols,
@@ -56,7 +55,6 @@ using DimensionalData
 
         # Create pipeline with only gap filling enabled
         pipeline = PEDDY.EddyPipeline(; sensor=sensor,
-                                      input=input,
                                       quality_control=nothing,
                                       despiking=nothing,
                                       gap_filling=gap_filling,
@@ -66,7 +64,7 @@ using DimensionalData
                                       output=output)
 
         # Run pipeline
-        PEDDY.process(pipeline)
+        PEDDY.process!(pipeline, hd, ld)
 
         # Get results
         processed_hf, processed_lf = PEDDY.get_results(output)
@@ -119,13 +117,11 @@ using DimensionalData
         ld = DimArray(rand(5, n_vars), (Ti(1:5), Var(needed_cols)))
 
         # Set up pipeline with QC and gap filling
-        input = PEDDY.PassData(hd, ld)
         output = PEDDY.MemoryOutput()
         qc = PEDDY.PhysicsBoundsCheck()  # Default physics bounds
         gap_filling = PEDDY.GeneralInterpolation(; max_gap_size=2, variables=[:Ux, :Uy])  # Don't fill single QC-flagged values
 
         pipeline = PEDDY.EddyPipeline(; sensor=sensor,
-                                      input=input,
                                       quality_control=qc,
                                       despiking=nothing,
                                       gap_filling=gap_filling,
@@ -135,7 +131,7 @@ using DimensionalData
                                       output=output)
 
         # Run pipeline
-        PEDDY.process(pipeline)
+        PEDDY.process!(pipeline, hd, ld)
 
         # Get results
         processed_hf, processed_lf = PEDDY.get_results(output)
@@ -172,14 +168,12 @@ using DimensionalData
         methods_to_test = [PEDDY.Linear(), PEDDY.Quadratic(), PEDDY.Cubic()]
 
         for method in methods_to_test
-            input = PEDDY.PassData(copy(hd), ld)
             output = PEDDY.MemoryOutput()
             gap_filling = PEDDY.GeneralInterpolation(; max_gap_size=5,
                                                      variables=[:Ux],
                                                      method=method)
 
             pipeline = PEDDY.EddyPipeline(; sensor=sensor,
-                                          input=input,
                                           quality_control=nothing,
                                           despiking=nothing,
                                           gap_filling=gap_filling,
@@ -189,7 +183,7 @@ using DimensionalData
                                           output=output)
 
             # Run pipeline
-            PEDDY.process(pipeline)
+            PEDDY.process!(pipeline, copy(hd), ld)
 
             # Get results
             processed_hf, _ = PEDDY.get_results(output)

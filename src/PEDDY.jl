@@ -7,18 +7,6 @@ using DimensionalData: @dim
 
 abstract type PipelineStep end
 
-abstract type AbstractInput <: PipelineStep end
-
-"""
-    read_data(p::AbstractInput; kwargs...)
-
-Read data from a file. Or pass data to the pipeline directly.
-
-# Returns 
-    data::DimArray
-"""
-function read_data end
-
 abstract type AbstractSensor end
 function check_diagnostics! end
 
@@ -75,9 +63,9 @@ include("double_rotation.jl")
 include("MRD/mrd.jl")
 include("MRD/mrd_plotting.jl")
 
-export AbstractInput, AbstractSensor, AbstractQC, AbstractDespiking, AbstractGapFilling,
+export AbstractSensor, AbstractQC, AbstractDespiking, AbstractGapFilling,
        AbstractGasAnalyzer, AbstractDoubleRotation, AbstractMRD, AbstractOutput
-export read_data, write_data
+export write_data
 export check_diagnostics!, quality_control!, despike!, fill_gaps!, correct_gas_analyzer!,
        rotate!, decompose!
 

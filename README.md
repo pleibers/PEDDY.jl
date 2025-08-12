@@ -24,14 +24,13 @@ A more exhaustive documentation is available at [PEDDY.jl](MISSING) or build the
 
 The pipeline always runs in the following order:
 
-1. **Data Input**: Reading data from a specific file format or passing it as a DimArray
-2. **Quality Control**: Physics-based bounds checking and diagnostic validation (optional)
-3. **Gas Analyzer Correction**: H₂O bias correction using polynomial calibration (optional)
-4. **Despiking**: Median Absolute Deviation (MAD) based spike detection and removal (optional)
-5. **Gap Filling**: Linear, quadratic, and cubic spline interpolation for small gaps (optional)
-6. **Double Rotation**: Wind coordinate transformation (optional)
-7. **Mean Removal and Detrending (MRD)**: Statistical preprocessing (optional)
-8. **Data Output**: Flexible writing with multiple format support
+1. **Quality Control**: Physics-based bounds checking and diagnostic validation (optional)
+2. **Gas Analyzer Correction**: H₂O bias correction using polynomial calibration (optional)
+3. **Despiking**: Median Absolute Deviation (MAD) based spike detection and removal (optional)
+4. **Gap Filling**: Linear, quadratic, and cubic spline interpolation for small gaps (optional)
+5. **Double Rotation**: Wind coordinate transformation (optional)
+6. **Mean Removal and Detrending (MRD)**: Statistical preprocessing (optional)
+7. **Data Output**: Flexible writing with multiple format support
 
 Each pipeline step introduces an abstract type so can be extended for your needs.
 
@@ -53,11 +52,9 @@ using PEDDY
 sensor = CSAT3()
 high_frequency_data = rand(3,30) # Your data
 low_frequency_data = rand(3,10) # Your data
-input = PassData(high_frequency_data, low_frequency_data)
 output = MemoryOutput() # Don't write to disk, just store in memory
 pipeline = EddyPipeline(
     sensor = sensor,
-    input = input,
     quality_control = PhysicsBoundsCheck(),
     gap_filling = GeneralInterpolation(),
     gas_analyzer = H2OCalibration(),
@@ -65,7 +62,7 @@ pipeline = EddyPipeline(
 )
 
 # Process your data
-process(pipeline)
+process!(pipeline, high_frequency_data, low_frequency_data)
 ```
 
 ## Data Format
