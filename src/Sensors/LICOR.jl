@@ -74,12 +74,17 @@ has_variables(sensor::LICOR) = (:Ux, :Uy, :Uz, :Ts, :CO2, :H2O, :T, :P)
 function check_diagnostics!(sensor::LICOR, data::DimArray)
     # TODO: Is missing sonic diagnostics
     diag_gas_col = view(data, Var(At(:diag_gas)))
+    diag_sonic_col = view(data, Var(At(:diag_sonic)))
     nan = convert(eltype(diag_gas_col), NaN)
     for i in eachindex(diag_gas_col)
         if diag_gas_col[i] > sensor.diag_gas
             @debug "Discarding record $i due to diagnostic value $(diag_gas_col[i])"
             data[i, :H2O] = nan
             data[i, :P] = nan
+        end
+        if diag_sonic_col[i] != sensor.diag_sonic
+            @debug "Discarding record $i due to sonic diagnostic value $(diag_sonic_col[i])"
+            data[i, :Ux] = data[i, :Uy] = data[i, :Uz] = data[i, :Ts] = nan # is this what should be discarded?
         end
     end
 end
