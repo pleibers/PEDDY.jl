@@ -22,7 +22,7 @@ Return the generic plotting payload for any MRD type:
 - `times::AbstractVector`: mid-times for each block
 
 Other MRD types should overload this if they do not store results
-in the same shape as `Non-OrthogonalMRD`.
+in the same shape as `OrthogonalMRD`.
 """
 function mrd_plot_payload(m::PEDDY.AbstractMRD)
     res = try

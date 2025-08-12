@@ -1,5 +1,6 @@
 module PEDDY
 
+using Dates
 using Reexport
 @reexport using DimensionalData
 using DimensionalData: @dim

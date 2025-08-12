@@ -21,12 +21,12 @@ function build_hf_ld(n; dt_ms=100)
     return hd, ld
 end
 
-@testset "Non-OrthogonalMRD" begin
+@testset "OrthogonalMRD" begin
     @testset "Basic decomposition produces shapes and metadata" begin
         n = 4096  # enough for multiple blocks with default M=11 (2^11=2048)
         hd, ld = build_hf_ld(n)
 
-        mrd = PEDDY.Non-OrthogonalMRD()
+        mrd = PEDDY.OrthogonalMRD()
         PEDDY.decompose!(mrd, hd, ld)
         res = PEDDY.get_mrd_results(mrd)
 
@@ -54,7 +54,7 @@ end
         # Rebuild DimArray with modified time axis
         hd = DimArray(parent(hd), (Ti(ti), dims(hd, Var)))
 
-        mrd = PEDDY.Non-OrthogonalMRD(M=11, shift=2048, gap_threshold_seconds=10.0)
+        mrd = PEDDY.OrthogonalMRD(M=11, shift=2048, gap_threshold_seconds=10.0)
         PEDDY.decompose!(mrd, hd, ld)
         res = PEDDY.get_mrd_results(mrd)
 
@@ -68,11 +68,11 @@ end
         n = 4096
         hd, ld = build_hf_ld(n)
 
-        mrd_plain = PEDDY.Non-OrthogonalMRD(normalize=false)
+        mrd_plain = PEDDY.OrthogonalMRD(normalize=false)
         PEDDY.decompose!(mrd_plain, hd, ld)
         res_plain = PEDDY.get_mrd_results(mrd_plain)
 
-        mrd_norm = PEDDY.Non-OrthogonalMRD(normalize=true)
+        mrd_norm = PEDDY.OrthogonalMRD(normalize=true)
         PEDDY.decompose!(mrd_norm, hd, ld)
         res_norm = PEDDY.get_mrd_results(mrd_norm)
 

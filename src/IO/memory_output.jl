@@ -18,7 +18,7 @@ end
 
 # Convenience constructor
 function MemoryOutput()
-    @warn "MemoryOutput created without type specification. Defaulting to Any. Might cause performance issues."
+    @debug "MemoryOutput created without type specification. Defaulting to Any. Might cause performance issues."
     return MemoryOutput{Any}()
 end
 

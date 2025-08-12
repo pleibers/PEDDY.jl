@@ -45,7 +45,7 @@ function process(pipeline::EddyPipeline; kwargs...)
 
     next!(prog; showvalues=[("Status", "Reading Data...")], spinner="📖")
     high_frequency_data, low_frequency_data = read_data(pipeline.input; kwargs...)
-    check_data(high_frequency_data, pipeline.sensor)
+    check_data(high_frequency_data, low_frequency_data, pipeline.sensor)
     # FAQ: Should we check the low frequency data?
 
     next!(prog; showvalues=[("Status", "Performing Quality Control...")], spinner="🔬")
@@ -88,4 +88,5 @@ function check_data(high_frequency_data::DimArray, low_frequency_data::DimArray,
             throw(ArgumentError("Var dimension must have a $col variable"))
         end
     end
+    @debug "High frequency data checked, no checks performed on low frequency data"
 end

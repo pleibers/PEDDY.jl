@@ -1,8 +1,6 @@
 export WindDoubleRotation
 
 using Statistics
-using Dates
-
  
 """
     WindDoubleRotation(; block_duration_minutes=30.0, variables=[:Ux, :Uy, :Uz])
@@ -127,7 +125,7 @@ function _calculate_block_size(data::DimArray, block_duration_minutes)
     
     # Calculate sampling frequency from time difference
     time_diff = time_dim[2] - time_dim[1]
-    freq_seconds = Dates.value(Milliseconds(time_diff)) / 1000.0  # Convert to seconds
+    freq_seconds = Dates.value(Millisecond(time_diff)) / 1000.0  # Convert to seconds
     
     block_duration_seconds = block_duration_minutes * 60.0
     block_size = round(Int, block_duration_seconds / freq_seconds)

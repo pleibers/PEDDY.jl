@@ -89,7 +89,7 @@ using Dates
         # Create synthetic data with known spikes
         n_points = 1000
         freq_hz = 10.0  # 10 Hz sampling
-        dt_ms = round(Int, 1000 / freq_hz)  # milliseconds
+        dt_ms = round(Int, 1000 / freq_hz)  # Millisecond
         
         # Create time dimension
         start_time = DateTime(2023, 1, 1, 12, 0, 0)
