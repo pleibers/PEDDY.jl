@@ -75,7 +75,7 @@ function control_physical_limits!(qc::PhysicsBoundsCheck, data::DimArray, sensor
 end
 
 function quality_control!(qc::PhysicsBoundsCheck, high_frequency_data::DimArray,
-                          low_frequency_data::DimArray, sensor::S;
+                          low_frequency_data, sensor::S;
                           kwargs...) where {S<:AbstractSensor}
     check_diagnostics!(sensor, high_frequency_data)
     return control_physical_limits!(qc, high_frequency_data, sensor; kwargs...)

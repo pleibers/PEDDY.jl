@@ -41,7 +41,7 @@ end
 decompose!(mrd::Nothing, high_frequency_data, low_frequency_data; kwargs...) = nothing
 
 # Data should be in the correct format
-function process!(pipeline::EddyPipeline, high_frequency_data::DimArray, low_frequency_data::DimArray; kwargs...)
+function process!(pipeline::EddyPipeline, high_frequency_data::DimArray, low_frequency_data::Union{Nothing, DimArray}; kwargs...)
     prog = ProgressUnknown(;desc="PEDDY is cleaning your data...", spinner=true)
 
     check_data(high_frequency_data, low_frequency_data, pipeline.sensor)
@@ -72,7 +72,7 @@ function process!(pipeline::EddyPipeline, high_frequency_data::DimArray, low_fre
     return finish!(prog; desc="PEDDY is done cleaning your data!", spinner="🎉")
 end
 
-function check_data(high_frequency_data::DimArray, low_frequency_data::DimArray, sensor::AbstractSensor)
+function check_data(high_frequency_data::DimArray, low_frequency_data::Union{Nothing,DimArray}, sensor::AbstractSensor)
     # FAQ: Should we check the low frequency data?
 
     needed_cols = needs_data_cols(sensor)

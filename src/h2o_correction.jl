@@ -220,8 +220,8 @@ Parameters:
 - low_frequency_data: Low-frequency/slow measurements (DimArray)
 - sensor: Sensor instance (used to extract calibration coefficients if not provided in gas_analyzer)
 """
-function correct_gas_analyzer!(gas_analyzer::H2OCalibration, high_frequency_data,
-                               low_frequency_data, sensor; kwargs...)
+function correct_gas_analyzer!(gas_analyzer::H2OCalibration, high_frequency_data::DimArray,
+                               low_frequency_data::DimArray, sensor; kwargs...)
     # Get calibration coefficients from sensor
     calibration_coefficients = get_calibration_coefficients(sensor)
     if calibration_coefficients === nothing
