@@ -14,11 +14,12 @@ using Statistics
 export mrd_plot_payload
 
 """
-    mrd_plot_payload(m::AbstractMRD) -> (scales, mrd, times)
+    mrd_plot_payload(m::AbstractMRD) -> (scales, mrd, mrd_std, times)
 
 Return the generic plotting payload for any MRD type:
 - `scales::AbstractVector{<:Real}`: dyadic time scales (seconds)
 - `mrd::AbstractMatrix{<:Real}`: contributions at (scale, block)
+- `mrd_std::AbstractMatrix{<:Real}`: per-scale uncertainty (sample std across windows)
 - `times::AbstractVector`: mid-times for each block
 
 Other MRD types should overload this if they do not store results
@@ -31,7 +32,7 @@ function mrd_plot_payload(m::PEDDY.AbstractMRD)
         nothing
     end
     res === nothing && error("No MRD results available. Run decompose! first.")
-    return (scales = res.scales, mrd = res.mrd, times = res.times)
+    return (scales = res.scales, mrd = res.mrd, mrd_std = res.mrd_std, times = res.times)
 end
 
 # Internal helpers
@@ -63,6 +64,7 @@ end
 #   plot(mrd_step; kind=:summary)          # per-scale median with interquartile ribbon
 # Keywords:
 #   kind::Symbol = :heatmap | :summary
+#   metric::Symbol = :mrd      # :mrd or :std
 #   logscale::Bool = true      # apply log10 on scale axis
 #   clims = nothing            # pass through to heatmap
 #   colormap = :viridis        # pass through to heatmap
@@ -70,6 +72,7 @@ end
 #   xlabel = "Time"
 #   ylabel = "Scale (s)"
 @recipe function f(m::PEDDY.AbstractMRD; kind = :heatmap,
+                                 metric = :mrd,
                                  logscale = true,
                                  clims = nothing,
                                  colormap = :viridis,
@@ -77,10 +80,12 @@ end
                                  xlabel = "Time",
                                  ylabel = "Scale (s)")
     payload = mrd_plot_payload(m)
-    scales, mat, times = payload.scales, payload.mrd, payload.times
+    scales, times = payload.scales, payload.times
+    mat = metric === :mrd ? payload.mrd : payload.mrd_std
 
     # Remove custom/alias kwargs from plotattributes to avoid leaking unsupported keys
     delete!(plotattributes, :kind)
+    delete!(plotattributes, :metric)
     delete!(plotattributes, :logscale)
     delete!(plotattributes, :colormap)
     delete!(plotattributes, :xlabel)
@@ -109,7 +114,7 @@ end
     elseif kind == :summary
         seriestype := :line
         xguide --> ylabel  # x is scale axis here
-        yguide --> "Contribution"
+        yguide --> (metric === :mrd ? "Contribution" : "Std (ddof=1)")
         legend --> :topright
         if title !== nothing
             title --> title
