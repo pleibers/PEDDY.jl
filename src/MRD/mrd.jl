@@ -1,7 +1,8 @@
-export OrthogonalMRD, get_mrd_results
+export OrthogonalMRD, MRDResults, get_mrd_results
 
 """
-    OrthogonalMRD(; M=11, Mx=0, shift=256, a=:Uz, b=:Ts, gap_threshold_seconds=10.0, normalize=false)
+    OrthogonalMRD(; M=11, Mx=0, shift=256, a=:Uz, b=:Ts,
+                    gap_threshold_seconds=10.0, normalize=false, regular_grid=false)
 
 Multi-Resolution Decomposition (MRD) step adapted from the pepy project (Vickers & Mahrt 2003; Howell & Mahrt 1997).
 
@@ -18,11 +19,27 @@ Minimal results are stored inside the struct and can be retrieved with `get_mrd_
 - `b::Symbol`: Second variable (e.g., :Ts)
 - `gap_threshold_seconds::Real`: Maximum allowed time gap within a block
 - `normalize::Bool`: If true, normalizes MRD using centered moving-average of a*b
+- `regular_grid::Bool`: If true, backfills invalid blocks with NaN columns to keep a regular block grid; if false, skips invalid blocks (default false)
 
 # Notes
 - Uses `mean_skipnan` to ignore NaNs, consistent with the package style.
 - Does not mutate the data; only computes decomposition and stores results.
 """
+struct MRDResults{T<:Real}
+    """Strongly-typed MRD output container.
+
+    Fields:
+    - scales::Vector{T}: time scales (seconds) for indices 1..M
+    - mrd::Matrix{T}: mean of window-mean products per scale and block (M × N)
+    - mrd_std::Matrix{T}: sample std (ddof=1) across window-mean products (M × N)
+    - times::AbstractVector{<:Dates.TimeType}: midpoint times per block
+    """
+    scales::Vector{T}
+    mrd::Matrix{T}
+    mrd_std::Matrix{T}
+    times::AbstractVector{<:Dates.TimeType}
+end
+
 mutable struct OrthogonalMRD{T<:Real} <: AbstractMRD
     M::Int
     Mx::Int
@@ -31,14 +48,16 @@ mutable struct OrthogonalMRD{T<:Real} <: AbstractMRD
     b::Symbol
     gap_threshold_seconds::T
     normalize::Bool
-    results::Union{Nothing, NamedTuple}
+    regular_grid::Bool
+    results::Union{Nothing, MRDResults{T}}
 
     function OrthogonalMRD(; number_type=Float64, M::Int=11, Mx::Int=0, shift::Int=256,
                            a::Symbol=:Uz, b::Symbol=:Ts,
                            gap_threshold_seconds::Real=10.0,
-                           normalize::Bool=false)
+                           normalize::Bool=false,
+                           regular_grid::Bool=false)
         gap_thr = convert(number_type, gap_threshold_seconds)
-        new{number_type}(M, Mx, shift, a, b, gap_thr, normalize, nothing)
+        new{number_type}(M, Mx, shift, a, b, gap_thr, normalize, regular_grid, nothing)
     end
 end
 
@@ -46,10 +65,11 @@ end
     decompose!(m::OrthogonalMRD, high_frequency_data::DimArray, low_frequency_data; kwargs...)
 
 Run the MRD on high-frequency data for variables `m.a` and `m.b`.
-Stores results in `m.results` as a NamedTuple with fields:
+Stores results in `m.results::Union{Nothing, MRDResults{T}}` with fields:
 - `scales`: Vector of time scales in seconds for indices 1..M (2^i * dt)
-- `mrd`: Matrix of size (M, nblocks) with MRD per scale and block
-- `times`: Vector of midpoint times for each block
+- `mrd`: Matrix of size (M, nblocks) with MRD per scale and block (mean of window-mean products)
+- `mrd_std`: Matrix of size (M, nblocks) with per-scale sample standard deviation across window-mean products (ddof=1)
+- `times`: Vector of midpoint times for each block. If `m.regular_grid == true`, length equals the full regular block grid; otherwise only valid blocks are included.
 """
 function decompose!(m::OrthogonalMRD, high_frequency_data::DimArray, low_frequency_data; kwargs...)
     # Validate variables exist
@@ -100,6 +120,7 @@ function decompose!(m::OrthogonalMRD, high_frequency_data::DimArray, low_frequen
 
     # Iterate blocks
     mrd_columns_per_block = Vector{Vector{Float64}}()
+    mrd_std_columns_per_block = Vector{Vector{Float64}}()
     block_mid_times = Vector{eltype(time_dim)}()
 
     block_start_index = 1
@@ -108,10 +129,21 @@ function decompose!(m::OrthogonalMRD, high_frequency_data::DimArray, low_frequen
 
         # Check that no large gap occurs inside [block_start_index, block_end_index]
         has_internal_gap = (gap_prefix_sum[block_end_index - 1] - (block_start_index >= 2 ? gap_prefix_sum[block_start_index - 1] : 0)) > 0
-        if !has_internal_gap
+
+        # Determine block midpoint time
+        mid_time = time_dim[block_start_index + (block_end_index - block_start_index) ÷ 2]
+
+        if has_internal_gap
+            if m.regular_grid
+                # Backfill with NaN column for regular grid alignment
+                push!(mrd_columns_per_block, fill(NaN, m.M))
+                push!(mrd_std_columns_per_block, fill(NaN, m.M))
+                push!(block_mid_times, mid_time)
+            end
+        else
             a_block = high_frequency_data[Var(m.a), Ti(block_start_index:block_end_index)][:]
             b_block = high_frequency_data[Var(m.b), Ti(block_start_index:block_end_index)][:]
-            scale_covariances = _mrd_block(a_block, b_block, m.M, m.Mx)
+            scale_covariances, scale_stddevs = _mrd_block(a_block, b_block, m.M, m.Mx)
 
             if m.normalize
                 mid_index = block_start_index + (block_end_index - block_start_index) ÷ 2
@@ -123,7 +155,8 @@ function decompose!(m::OrthogonalMRD, high_frequency_data::DimArray, low_frequen
             end
 
             push!(mrd_columns_per_block, scale_covariances)
-            push!(block_mid_times, time_dim[block_start_index + (block_end_index - block_start_index) ÷ 2])
+            push!(mrd_std_columns_per_block, scale_stddevs)
+            push!(block_mid_times, mid_time)
         end
 
         block_start_index += block_shift
@@ -139,14 +172,20 @@ function decompose!(m::OrthogonalMRD, high_frequency_data::DimArray, low_frequen
 
     M = m.M
     mrd_mat = fill(NaN, M, nblocks)
+    mrd_std_mat = fill(NaN, M, nblocks)
     for (j, col) in enumerate(mrd_columns_per_block)
         @inbounds for i in 1:min(M, length(col))
             mrd_mat[i, j] = col[i]
         end
     end
+    for (j, col) in enumerate(mrd_std_columns_per_block)
+        @inbounds for i in 1:min(M, length(col))
+            mrd_std_mat[i, j] = col[i]
+        end
+    end
 
     scales = [2.0^i * sampling_period_seconds for i in 1:M]
-    m.results = (scales=scales, mrd=mrd_mat, times=block_mid_times)
+    m.results = MRDResults{eltype(mrd_mat)}(scales, mrd_mat, mrd_std_mat, block_mid_times)
     return nothing
 end
 
@@ -195,10 +234,12 @@ function _detect_gaps_after(ti_dim, threshold_seconds)
 end
 
 """
-    _mrd_block(a::AbstractVector{<:Real}, b::AbstractVector{<:Real}, M::Int, Mx::Int) -> Vector{Float64}
+    _mrd_block(a::AbstractVector{<:Real}, b::AbstractVector{<:Real}, M::Int, Mx::Int)
+        -> Tuple{Vector{Float64}, Vector{Float64}}
 
-Compute MRD for a single block of length 2^M samples, returning a vector of size M
-with entries corresponding to scales 1..M (1-indexed).
+Compute MRD for a single block of length 2^M samples, returning two vectors of size M:
+- mean per scale (MRD contribution, entries for scales 1..M)
+- sample standard deviation per scale (ddof=1) across window-mean products
 """
 function _mrd_block(a::AbstractVector{<:Real}, b::AbstractVector{<:Real}, M::Int, Mx::Int)
     @assert length(a) == length(b)
@@ -210,6 +251,7 @@ function _mrd_block(a::AbstractVector{<:Real}, b::AbstractVector{<:Real}, M::Int
     working_b = collect(float.(b))
 
     scale_covariances = fill(0.0, M)  # 1..M
+    scale_stddevs    = fill(NaN, M)   # 1..M
 
     # Iterate from largest scale current_scale = M down to Mx+1
     for scale_offset in 0:(M - Mx - 1)
@@ -218,7 +260,9 @@ function _mrd_block(a::AbstractVector{<:Real}, b::AbstractVector{<:Real}, M::Int
         num_windows = Int(round((2.0^M) / window_length))  # = 2^(M-current_scale)
 
         # Window means and mean removal
-        accumulated_covariance = 0.0
+        # Welford online algorithm for mean and (sample) variance of window products
+        mean_prod = 0.0
+        m2_prod = 0.0
         valid_window_count = 0
 
         for window_index in 0:(num_windows - 1)
@@ -237,21 +281,30 @@ function _mrd_block(a::AbstractVector{<:Real}, b::AbstractVector{<:Real}, M::Int
                 end
             end
 
-            # Accumulate covariance of window means
+            # Accumulate product statistics across windows
             if !(isnan(window_mean_a) || isnan(window_mean_b))
-                accumulated_covariance += window_mean_a * window_mean_b
+                p = window_mean_a * window_mean_b
                 valid_window_count += 1
+                δ = p - mean_prod
+                mean_prod += δ / valid_window_count
+                m2_prod += δ * (p - mean_prod)
             end
         end
 
-        if valid_window_count > 1
-            scale_covariances[current_scale] = accumulated_covariance / valid_window_count
-        else
+        if valid_window_count == 0
             scale_covariances[current_scale] = NaN
+            scale_stddevs[current_scale] = NaN
+        else
+            scale_covariances[current_scale] = mean_prod
+            if valid_window_count > 1
+                scale_stddevs[current_scale] = sqrt(m2_prod / (valid_window_count - 1))
+            else
+                scale_stddevs[current_scale] = NaN
+            end
         end
     end
 
-    return scale_covariances
+    return scale_covariances, scale_stddevs
 end
 
 """
