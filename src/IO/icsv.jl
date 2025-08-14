@@ -3,30 +3,29 @@
     location::LocationMetadata
     fields::Dict{Symbol,VariableMetadata} = DEFAULT_VARIABLE_METADATA
     field_delimiter::String = ","
+    nodata::Float64 = -9999.0
 end
 
 function write_data(out::ICSVOutput, high_frequency_data::DimArray, low_frequency_data::Union{Nothing,DimArray}; kwargs...)
     field_delimiter = out.field_delimiter
     location = PYiCSV.Location(out.location.latitude, out.location.longitude, out.location.elevation)
-    nodata = -9999.0
     base, ext = splitext(out.base_filename)
     if ext == ""
         ext = ".icsv"
     end
     # HF Data
-    _save_icsv_dataset(base, ext, field_delimiter, location, nodata, out, high_frequency_data, "High frequency data", "_hf")
+    _save_icsv_dataset(base, ext, field_delimiter, location, out, high_frequency_data, "High frequency data", "_hf")
     # LF Data
     if !isnothing(low_frequency_data)
-        _save_icsv_dataset(base, ext, field_delimiter, location, nodata, out, low_frequency_data, "Low frequency data", "_lf")
+        _save_icsv_dataset(base, ext, field_delimiter, location, out, low_frequency_data, "Low frequency data", "_lf")
     end
 end
 
 function _save_icsv_dataset(base::AbstractString, ext::AbstractString,
-                            field_delimiter::AbstractString, location,
-                            nodata, out::ICSVOutput, data::DimArray,
+                            field_delimiter::AbstractString, location, out::ICSVOutput, data::DimArray,
                             description::AbstractString, suffix::AbstractString)
     additional_metadata = Dict("description" => description)
-    metadata = Metadata(field_delimiter, location; nodata, additional_metadata)
+    metadata = Metadata(field_delimiter, location; nodata=out.nodata, additional_metadata)
     field_metadata = _create_field_metadata(out, data)
     fields = Fields(field_metadata)
     # Convert DimArray to a dictionary of column vectors. Allow heterogeneous column types.
@@ -46,7 +45,9 @@ function _save_icsv_dataset(base::AbstractString, ext::AbstractString,
     # Variables
     for var in ddims[var_dim_idx]
         # keep missing values as-is; PYiCSV will use nodata metadata if needed
-        data_dict[String(var)] = collect(data[Var=At(var)])
+        var_data = collect(data[Var=At(var)])
+        replace!(var_data, NaN => out.nodata)
+        data_dict[String(var)] = var_data
     end
     file = iCSV(metadata, fields, data_dict)
     filename = base * suffix * ext
