@@ -1,6 +1,3 @@
-export VariableMetadata
-export metadata_for
-
 @kwdef struct VariableMetadata
     standard_name::String
     unit::String = ""
@@ -9,6 +6,12 @@ export metadata_for
 end
 
 const DEFAULT_VARIABLE_METADATA = Dict{Symbol,VariableMetadata}(
+    :timestamp => VariableMetadata(
+        standard_name = "timestamp",
+        unit = "",
+        long_name = "Timestamp",
+        description = "Timestamp in the ISO format"
+    ),
     :Ux => VariableMetadata(
         standard_name = "eastward_wind",
         unit = "m s^-1",
@@ -61,3 +64,5 @@ const DEFAULT_VARIABLE_METADATA = Dict{Symbol,VariableMetadata}(
 
 metadata_for(name::Symbol) = get(DEFAULT_VARIABLE_METADATA, name, VariableMetadata(standard_name=String(name)))
 metadata_for(name::AbstractString) = metadata_for(Symbol(name))
+
+get_default_metadata() = DEFAULT_VARIABLE_METADATA

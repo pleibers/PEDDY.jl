@@ -1,8 +1,20 @@
+# Output
 export ICSVOutput
 export NetCDFOutput
 export MemoryOutput
 
-#Input
+export LocationMetadata
+
+export VariableMetadata
+export get_default_metadata
+export metadata_for
+
+# Input
+export read_data
+
+export DotDatDirectory
+export FileOptions
+
 abstract type AbstractInput end
 function read_data end
 include("dat_directory.jl")
@@ -17,6 +29,18 @@ include("variable_metadata.jl")
     instrument_height::Union{Float64, Nothing} = nothing
 end
 
-include("icsv.jl")
+PYiCSV_loaded::Ref{Bool} = Ref(false)
+
+try
+    using PYiCSV
+    PYiCSV.install_dependencies()
+    PYiCSV_loaded[] = true
+catch e
+    @warn "Could not load PYiCSV, ICSVOutput will not be available"
+end
+
+if PYiCSV_loaded[]
+    include("icsv.jl")
+end
 include("netcdf.jl")
 include("memory_output.jl")
