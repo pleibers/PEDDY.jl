@@ -2,6 +2,7 @@
 export ICSVOutput
 export NetCDFOutput
 export MemoryOutput
+export OutputSplitter
 
 export LocationMetadata
 
@@ -43,4 +44,6 @@ if PYiCSV_loaded[]
     include("icsv.jl")
 end
 include("netcdf.jl")
+include("output_splitter.jl")
+# TODO: Write a time splitter, i.e. take the data and write it in chunks of x
 include("memory_output.jl")
