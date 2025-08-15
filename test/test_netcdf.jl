@@ -4,22 +4,6 @@ using DimensionalData
 using PEDDY
 
 @testset "NetCDFOutput basic writing" begin
-    if !Base.isdefined(PEDDY, :NetCDFOutput)
-        @info "NetCDFOutput not available; skipping tests"
-        return
-    end
-    # Try to import NCDatasets; if it fails (e.g., missing binaries), skip tests
-    nc_ok = true
-    try
-        import NCDatasets
-    catch e
-        @info "NCDatasets not available (" * sprint(showerror, e) * "); skipping NetCDF tests"
-        nc_ok = false
-    end
-    if !nc_ok
-        return
-    end
-
     # --- Test 1: Write only HF file ---
     n = 12
     vars = [:Ux, :Uy, :Uz, :Ts]

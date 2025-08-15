@@ -1,3 +1,5 @@
+using NCDatasets
+
 @kwdef struct NetCDFOutput <: AbstractOutput
     base_filename::String
     location::LocationMetadata
@@ -5,24 +7,7 @@
     fill_value::Float64 = -9999.0
 end
 
-# Lazy loader for NCDatasets to avoid hard dependency at module load time
-function _ncd()
-    # If already available in this module, return it
-    if isdefined(@__MODULE__, :NCDatasets)
-        return getfield(@__MODULE__, :NCDatasets)
-    end
-    # Try to import at module scope via eval
-    try
-        @eval import NCDatasets
-        return getfield(@__MODULE__, :NCDatasets)
-    catch e
-        error("NCDatasets not available: $(sprint(showerror, e))")
-    end
-end
-
 function write_data(out::NetCDFOutput, high_frequency_data::DimArray, low_frequency_data::Union{Nothing,DimArray}; kwargs...)
-    # Load NCDatasets lazily to avoid module-load-time dependency issues
-    ncd = _ncd()
     base, ext = splitext(out.base_filename)
     if ext == ""
         ext = ".nc"
@@ -47,8 +32,7 @@ function _save_netcdf_dataset(path::AbstractString, out::NetCDFOutput, data::Dim
     time_values, time_units, calendar = _prepare_time_values(time_labels)
 
     # Create dataset
-    ncd = _ncd()
-    ds = ncd.NCDataset(path, "c"; attrib = Dict(
+    ds = NCDataset(path, "c"; attrib = Dict(
         "title" => String(title),
         "Conventions" => "CF-1.6",
         "history" => string("created on ", Dates.format(now(), dateformat"yyyy-mm-ddTHH:MM:SS")),
@@ -61,21 +45,21 @@ function _save_netcdf_dataset(path::AbstractString, out::NetCDFOutput, data::Dim
     ))
     try
         # Dimensions
-        ncd.defDim(ds, "time", length(time_values))
+        defDim(ds, "time", length(time_values))
 
         # Coordinate variables (scalar coords allowed by CF)
-        lat = ncd.defVar(ds, "latitude", Float64, (); attrib = Dict(
+        lat = defVar(ds, "latitude", Float64, (); attrib = Dict(
             "standard_name" => "latitude",
             "long_name" => "latitude",
             "units" => "degrees_north",
         ))
-        lon = ncd.defVar(ds, "longitude", Float64, (); attrib = Dict(
+        lon = defVar(ds, "longitude", Float64, (); attrib = Dict(
             "standard_name" => "longitude",
             "long_name" => "longitude",
             "units" => "degrees_east",
         ))
         if out.location.elevation !== nothing
-            height = ncd.defVar(ds, "height", Float64, (); attrib = Dict(
+            height = defVar(ds, "height", Float64, (); attrib = Dict(
                 "standard_name" => "height",
                 "long_name" => "instrument height above ground",
                 "units" => "m",
@@ -87,7 +71,7 @@ function _save_netcdf_dataset(path::AbstractString, out::NetCDFOutput, data::Dim
         lon[] = out.location.longitude
 
         # Time coordinate variable
-        time = ncd.defVar(ds, "time", Float64, ("time",); attrib = Dict(
+        time = defVar(ds, "time", Float64, ("time",); attrib = Dict(
             "standard_name" => "time",
             "long_name" => "time",
             "units" => time_units,
@@ -106,7 +90,7 @@ function _save_netcdf_dataset(path::AbstractString, out::NetCDFOutput, data::Dim
                 v = vec[i]
                 vals[i] = isnan(v) ? out.fill_value : Float64(v)
             end
-            vdef = ncd.defVar(ds, name, Float64, ("time",); attrib = Dict(
+            vdef = defVar(ds, name, Float64, ("time",); attrib = Dict(
                 "standard_name" => vm.standard_name,
                 "long_name" => vm.long_name,
                 "units" => vm.unit,
@@ -118,7 +102,7 @@ function _save_netcdf_dataset(path::AbstractString, out::NetCDFOutput, data::Dim
             vdef[:] = vals
         end
     finally
-        ncd.close(ds)
+        close(ds)
     end
     return nothing
 end

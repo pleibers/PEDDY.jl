@@ -30,20 +30,7 @@ include("variable_metadata.jl")
     instrument_height::Union{Float64, Nothing} = nothing
 end
 
-PYiCSV_loaded::Ref{Bool} = Ref(false)
-
-try
-    using PYiCSV
-    PYiCSV.install_dependencies()
-    PYiCSV_loaded[] = true
-catch e
-    @warn "Could not load PYiCSV, ICSVOutput will not be available"
-end
-
-if PYiCSV_loaded[]
-    include("icsv.jl")
-end
+# include("icsv.jl")
 include("netcdf.jl")
 include("output_splitter.jl")
-# TODO: Write a time splitter, i.e. take the data and write it in chunks of x
 include("memory_output.jl")
