@@ -1,3 +1,14 @@
+"""
+    VariableMetadata(; standard_name, unit="", long_name="", description="")
+
+Lightweight container for per-variable metadata used by output backends.
+
+Fields:
+- `standard_name::String`: CF-style standard name or canonical name.
+- `unit::String`: Physical unit (free text, e.g. "m s^-1").
+- `long_name::String`: Human-readable name.
+- `description`: Free-form description.
+"""
 @kwdef struct VariableMetadata
     standard_name::String
     unit::String = ""
@@ -62,7 +73,32 @@ const DEFAULT_VARIABLE_METADATA = Dict{Symbol,VariableMetadata}(
     )
 )
 
-metadata_for(name::Symbol) = get(DEFAULT_VARIABLE_METADATA, name, VariableMetadata(standard_name=String(name)))
-metadata_for(name::AbstractString) = metadata_for(Symbol(name))
+"""
+    metadata_for(name::Union{Symbol,AbstractString}) -> VariableMetadata
 
+Return metadata for a variable. If the variable is not present in the
+`DEFAULT_VARIABLE_METADATA` registry, a generic `VariableMetadata` is returned
+using the variable name for both `standard_name` and `long_name` and empty
+unit/description.
+"""
+function metadata_for(name::Union{Symbol,AbstractString})
+    sym = name isa Symbol ? name : Symbol(name)
+    if haskey(DEFAULT_VARIABLE_METADATA, sym)
+        return DEFAULT_VARIABLE_METADATA[sym]
+    else
+        s = String(name)
+        return VariableMetadata(
+            standard_name = s,
+            unit = "",
+            long_name = s,
+            description = "",
+        )
+    end
+end
+
+"""
+    get_default_metadata() -> Dict{Symbol,VariableMetadata}
+
+Return the default metadata dictionary used by output backends.
+"""
 get_default_metadata() = DEFAULT_VARIABLE_METADATA

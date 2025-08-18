@@ -1,5 +1,16 @@
 using NCDatasets
 
+"""
+    NetCDFOutput(; base_filename, location, fields=DEFAULT_VARIABLE_METADATA, fill_value=-9999.0)
+
+Output backend that writes CF-compliant NetCDF files using NCDatasets.jl.
+
+Fields:
+- `base_filename::String`: Base path (without suffix); `_hf`/`_lf` and `.nc` are appended.
+- `location::LocationMetadata`: Site coordinates/elevation are stored as scalar coordinates.
+- `fields::Dict{Symbol,VariableMetadata}`: Per-variable metadata for CF attributes.
+- `fill_value::Float64`: Fill value for missing/NaN entries.
+"""
 @kwdef struct NetCDFOutput <: AbstractOutput
     base_filename::String
     location::LocationMetadata
@@ -7,6 +18,12 @@ using NCDatasets
     fill_value::Float64 = -9999.0
 end
 
+"""
+    write_data(out::NetCDFOutput, hf::DimArray, lf::Union{Nothing,DimArray}; kwargs...) -> nothing
+
+Write high-frequency `hf` and optionally low-frequency `lf` to NetCDF files named
+`<base>_hf.nc` and `<base>_lf.nc`. Returns `nothing`.
+"""
 function write_data(out::NetCDFOutput, high_frequency_data::DimArray, low_frequency_data::Union{Nothing,DimArray}; kwargs...)
     base, ext = splitext(out.base_filename)
     if ext == ""
@@ -21,6 +38,12 @@ function write_data(out::NetCDFOutput, high_frequency_data::DimArray, low_freque
     return nothing
 end
 
+"""
+    _save_netcdf_dataset(path, out, data; title)
+
+Internal helper that creates dimensions, coordinates, and writes variables with
+metadata and fill values.
+"""
 function _save_netcdf_dataset(path::AbstractString, out::NetCDFOutput, data::DimArray; title::AbstractString)
     ddims = dims(data)
     time_dim_idx = findfirst(d -> d isa Ti, ddims)
@@ -112,6 +135,12 @@ function _save_netcdf_dataset(path::AbstractString, out::NetCDFOutput, data::Dim
     return nothing
 end
 
+"""
+    _prepare_time_values(time_labels) -> (values::Vector{Float64}, units::String, calendar::String)
+
+Convert `Date`/`DateTime` labels to CF-style numeric time plus units and calendar.
+Falls back to sequential indices if labels are not temporal.
+"""
 function _prepare_time_values(time_labels)
     # Returns (values::Vector{Float64}, units::String, calendar::String)
     calendar = "gregorian"

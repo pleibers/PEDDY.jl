@@ -1,15 +1,48 @@
 using iCSV
 using Dates
 
+"""
+    ICSVOutput(; base_filename, location, fields=DEFAULT_VARIABLE_METADATA,
+                field_delimiter=",", nodata=-9999.0, other_metadata=Dict())
+
+Output backend that writes data in the `.icsv` format using the `iCSV.jl` package.
+
+Fields:
+- `base_filename::String`: Base path without suffix; `_hf`/`_lf` and `.icsv` are appended.
+- `location`: Site location metadata (accepts `LocationMetadata` or `iCSV.Loc`).
+- `fields::Dict{Symbol,VariableMetadata}`: Per-variable metadata written to the Fields section.
+- `field_delimiter::String`: Delimiter for the data section.
+- `nodata::Float64`: Fill value used for NaN/missing.
+- `other_metadata::Dict{Symbol,String}`: Additional key-value pairs for the MetaData section.
+
+Writes one file for high-frequency data and, if provided, one for low-frequency data.
+"""
 @kwdef struct ICSVOutput <: AbstractOutput
     base_filename::String
-    location::Loc
+    location::Union{Loc, LocationMetadata}
     fields::Dict{Symbol,VariableMetadata} = DEFAULT_VARIABLE_METADATA
     field_delimiter::String = ","
     nodata::Float64 = -9999.0
     other_metadata::Dict{Symbol,String} = Dict{Symbol,String}()
 end
 
+"""
+    _to_loc(loc)
+
+Convert supported location metadata types to `iCSV.Loc`.
+"""
+_to_loc(loc::Loc) = loc
+function _to_loc(loc::LocationMetadata)
+    # iCSV.Loc expects (x, y, z) where z can be `nothing`; map elevation to z.
+    return Loc(loc.latitude, loc.longitude, loc.elevation)
+end
+
+"""
+    write_data(out::ICSVOutput, hf::DimArray, lf::Union{Nothing,DimArray}; kwargs...)
+
+Write `hf` (and optionally `lf`) to `.icsv` files with suffixes `_hf` and `_lf`.
+Returns `nothing`.
+"""
 function write_data(out::ICSVOutput, high_frequency_data::DimArray, low_frequency_data::Union{Nothing,DimArray}; kwargs...)
     field_delimiter = out.field_delimiter
     base, ext = splitext(out.base_filename)
@@ -24,11 +57,16 @@ function write_data(out::ICSVOutput, high_frequency_data::DimArray, low_frequenc
     end
 end
 
+"""
+    _save_icsv_dataset(base, ext, field_delimiter, out, data, description, suffix)
+
+Internal helper that assembles the iCSV sections and writes one dataset.
+"""
 function _save_icsv_dataset(base::AbstractString, ext::AbstractString,
                             field_delimiter::AbstractString, out::ICSVOutput, data::DimArray,
                             description::AbstractString, suffix::AbstractString)
     out.other_metadata[:description] = description
-    geometry = Geometry(4326, out.location)
+    geometry = Geometry(4326, _to_loc(out.location))
     metadata = MetaDataSection(;field_delimiter, geometry, nodata=out.nodata, out.other_metadata...)
     field_metadata = _create_field_metadata(out, data)
     fields = FieldsSection(;field_metadata...)
@@ -57,6 +95,11 @@ function _save_icsv_dataset(base::AbstractString, ext::AbstractString,
     iCSV.write(file, filename)
 end
 
+"""
+    _create_field_metadata(out, data)
+
+Builds vectors for the Fields section including the timestamp column.
+"""
 function _create_field_metadata(out::ICSVOutput,data::DimArray)
     field_metadata = Dict{Symbol, Vector{String}}(:fields=>Vector{String}(), :units=>Vector{String}(), :long_names=>Vector{String}(), :standard_names=>Vector{String}(), :description=>Vector{String}())
     ddims = dims(data)

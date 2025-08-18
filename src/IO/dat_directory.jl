@@ -11,6 +11,7 @@ Fields:
 - `comment`: Comment marker
 - `timestamp_column`: Name of the timestamp column in the file
 - `time_format`: Dates.DateFormat used to parse timestamps
+- `nodata`: Numeric sentinel in files that should be replaced with `NaN`
 """
 @kwdef struct FileOptions
     header::Int = 1
@@ -42,6 +43,21 @@ Fields:
     nodata = -9999.0
 end
 
+"""
+    read_data(input::DotDatDirectory, sensor::AbstractSensor; colnames=nothing, N=Float64)
+
+Read high-frequency and optional low-frequency `.dat` files from `input.directory`.
+
+Behavior:
+- Selects only required columns for high-frequency data based on `needs_data_cols(sensor)` plus the timestamp column.
+- Parses timestamps in-file using the provided `FileOptions.time_format`.
+- Replaces `nodata` values with `NaN`.
+- Returns `(high_frequency_data::DimArray, low_frequency_data::Union{DimArray,Nothing})`.
+
+Keyword arguments:
+- `colnames::Union{Nothing,Vector{Symbol}}`: Provide column names when files have no header (`header == 0`).
+- `N::Type{<:Real}`: Element type for the returned data matrix (default `Float64`).
+"""
 function read_data(input::DotDatDirectory, sensor::AbstractSensor; colnames::Union{Nothing,Vector{Symbol}} = nothing, N::Type{R}=Float64) where {R<:Real}
     # --- Validate HF header/colnames contract ---
     if input.high_frequency_file_options.header == 0 && colnames === nothing
@@ -126,6 +142,12 @@ function read_data(input::DotDatDirectory, sensor::AbstractSensor; colnames::Uni
     return high_frequency_data, low_frequency_data
 end
 
+"""
+    check_colnames(data_cols::Vector{Symbol}, needed_cols::Vector{Symbol})
+
+Validate that all `needed_cols` are present in `data_cols`. Throws `ArgumentError`
+if a required column is missing.
+"""
 function check_colnames(data_cols::Vector{Symbol}, needed_cols::Vector{Symbol})
     if !all(x-> x in data_cols, needed_cols)
         throw(ArgumentError("Not all required columns are provided for sensor.\nRequires: $needed_cols\nFound: $data_cols"))            

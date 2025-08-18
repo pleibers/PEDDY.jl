@@ -1,6 +1,14 @@
-# OutputSplitter: wrap another AbstractOutput and split writes into time blocks
+"""
+    OutputSplitter(output; block_duration, naming=:time)
 
-export OutputSplitter
+Adapter that wraps another `AbstractOutput` and writes multiple files by
+splitting the input data into consecutive time blocks of length `block_duration`.
+
+Arguments:
+- `output::AbstractOutput`: The underlying writer (e.g., `ICSVOutput`, `NetCDFOutput`).
+- `block_duration::Dates.Period`: Size of each time block (e.g., `Dates.Hour(1)`).
+- `naming::Symbol`: Suffixing strategy, `:time` (start timestamp + period) or `:index`.
+"""
 
 @kwdef struct OutputSplitter{O<:AbstractOutput} <: AbstractOutput
     output::O
@@ -9,6 +17,13 @@ export OutputSplitter
 end
 
 # --- Public API ---
+"""
+    write_data(splitter::OutputSplitter, hf::DimArray, lf::Union{Nothing,DimArray}=nothing; kwargs...) -> nothing
+
+Split `hf` (and optional `lf`) by the time dimension into blocks of
+`splitter.block_duration` and delegate each block to the wrapped output.
+Returns `nothing`.
+"""
 function write_data(splitter::OutputSplitter,
                     high_frequency_data::DimArray,
                     low_frequency_data::Union{Nothing,DimArray}=nothing; kwargs...)
@@ -70,6 +85,7 @@ end
 # --- Helpers: base filename and reconstruction for known outputs ---
 
 # Extract base filename if available
+"""Extract the base filename (without extension) from common output structs."""
 function _get_base_filename(out)
     # Try common filename fields; fallback to "output"
     if hasproperty(out, :base_filename)
@@ -84,12 +100,14 @@ function _get_base_filename(out)
 end
 
 # Determine if a DimArray block has zero length along time dimension
+"""Return `true` if `data` has no entries along the time dimension."""
 function _isempty_time(data)
     td = findfirst(d -> d isa Ti, dims(data))
     return isnothing(td) || size(data, td) == 0
 end
 
 # Suffix formatting
+"""Create a per-block suffix according to `naming` (:index or :time)."""
 function _append_block_suffix(base::AbstractString, naming::Symbol, idx::Int, tstart, period)
     if naming === :index
         return string(base, "_block", lpad(string(idx), 4, '0'))
