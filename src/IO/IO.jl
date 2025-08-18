@@ -30,7 +30,7 @@ include("variable_metadata.jl")
     instrument_height::Union{Float64, Nothing} = nothing
 end
 
-# include("icsv.jl")
+include("icsv.jl")
 include("netcdf.jl")
 include("output_splitter.jl")
 include("memory_output.jl")

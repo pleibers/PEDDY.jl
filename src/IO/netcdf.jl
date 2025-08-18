@@ -88,7 +88,12 @@ function _save_netcdf_dataset(path::AbstractString, out::NetCDFOutput, data::Dim
             vals = Vector{Float64}(undef, length(vec))
             @inbounds for i in eachindex(vec)
                 v = vec[i]
-                vals[i] = isnan(v) ? out.fill_value : Float64(v)
+                # Treat both `missing` and `NaN` as fill values
+                if v === missing || (v isa AbstractFloat && isnan(v))
+                    vals[i] = out.fill_value
+                else
+                    vals[i] = Float64(v)
+                end
             end
             vdef = defVar(ds, name, Float64, ("time",); attrib = Dict(
                 "standard_name" => vm.standard_name,

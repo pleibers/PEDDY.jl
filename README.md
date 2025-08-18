@@ -29,10 +29,14 @@ The pipeline always runs in the following order:
 3. **Despiking**: Median Absolute Deviation (MAD) based spike detection and removal (optional)
 4. **Gap Filling**: Linear, quadratic, and cubic spline interpolation for small gaps (optional)
 5. **Double Rotation**: Wind coordinate transformation (optional)
-6. **Mean Removal and Detrending (MRD)**: Statistical preprocessing (optional)
+6. **Multi-Resolution Decomposition (MRD)**: Statistical preprocessing (optional)
 7. **Data Output**: Flexible writing with multiple format support
 
 Each pipeline step introduces an abstract type so can be extended for your needs.
+
+## MRD
+
+The MRD step will not modify the data, but instead provide the results inside the MRD struct, and can be plotted with plot(mrd::OrthogonalMRD;kwargs...)
 
 ## Quick Start
 

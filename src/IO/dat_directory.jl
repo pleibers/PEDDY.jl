@@ -19,6 +19,7 @@ Fields:
     timestamp_column::Symbol = :TIMESTAMP
     # Default expects e.g. "2024-02-01 08:16:06.200"
     time_format::DateFormat = dateformat"yyyy-mm-dd HH:MM:SS.s"
+    nodata = -9999.0
 end
 
 """
@@ -38,6 +39,7 @@ Fields:
     high_frequency_file_options::FileOptions = FileOptions()
     low_frequency_file_glob::Union{String,Nothing}=nothing
     low_frequency_file_options::Union{FileOptions,Nothing}=nothing
+    nodata = -9999.0
 end
 
 function read_data(input::DotDatDirectory, sensor::AbstractSensor; colnames::Union{Nothing,Vector{Symbol}} = nothing, N::Type{R}=Float64) where {R<:Real}
@@ -81,7 +83,7 @@ function read_data(input::DotDatDirectory, sensor::AbstractSensor; colnames::Uni
         )
         check_colnames(file.names, needed_cols)
         timestamps = parse_timestamps(file, input.high_frequency_file_options)
-        arr = build_dimarray_from_file(file, timestamps, needed_cols, N)
+        arr = build_dimarray_from_file(file, timestamps, needed_cols, N, input.nodata)
         # Initialize concrete container on first iteration
         if hf_data_arrays === nothing
             hf_data_arrays = Vector{typeof(arr)}()
@@ -151,7 +153,7 @@ end
 Construct a `DimArray` from a CSV.File, given parsed timestamps and the list of
 variable names to extract as columns.
 """
-function build_dimarray_from_file(file::CSV.File, timestamps, variable_names::Vector{Symbol}, ::Type{N}) where {N<:Real}
+function build_dimarray_from_file(file::CSV.File, timestamps, variable_names::Vector{Symbol}, ::Type{N}, nodata::Real) where {N<:Real}
     n_times = length(timestamps)
     n_vars = length(variable_names)
     # Smarter sorting: only reorder if timestamps are not ordered
@@ -171,5 +173,6 @@ function build_dimarray_from_file(file::CSV.File, timestamps, variable_names::Ve
         end
         dimarray = DimArray(data_matrix, (Ti(timestamps[perm]), Var(variable_names)))
     end
+    replace!(dimarray, nodata => NaN) # can be OOP if we use missing instead
     return dimarray
 end

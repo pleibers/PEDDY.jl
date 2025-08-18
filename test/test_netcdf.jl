@@ -1,6 +1,7 @@
 using Test
 using Dates
 using DimensionalData
+using NCDatasets
 using PEDDY
 
 @testset "NetCDFOutput basic writing" begin
@@ -41,16 +42,16 @@ using PEDDY
         # Dimensions and coordinates
         @test haskey(ds.dim, "time")
         @test ds.dim["time"] == n
-        @test haskey(ds.vars, "time")
-        @test haskey(ds.vars, "latitude")
-        @test haskey(ds.vars, "longitude")
+        @test haskey(ds, "time")
+        @test haskey(ds, "latitude")
+        @test haskey(ds, "longitude")
 
         # Time units attribute present
         @test haskey(ds["time"].attrib, "units")
         @test occursin("since", String(ds["time"].attrib["units"]))
 
         # A sample data var
-        @test all(v -> haskey(ds.vars, String(v)), vars)
+        @test all(v -> haskey(ds, String(v)), vars)
         ux = ds["Ux"]
         # Attributes from metadata
         @test haskey(ux.attrib, "standard_name")
@@ -92,8 +93,8 @@ using PEDDY
     ds2 = NCDatasets.NCDataset(path_lf2, "r")
     try
         # Check variable attributes match custom metadata
-        @test haskey(ds2.vars, "A")
-        @test haskey(ds2.vars, "B")
+        @test haskey(ds2, "A")
+        @test haskey(ds2, "B")
         @test ds2["A"].attrib["standard_name"] == "var_A"
         @test ds2["A"].attrib["units"] == "m s-1"
         @test ds2["B"].attrib["standard_name"] == "var_B"

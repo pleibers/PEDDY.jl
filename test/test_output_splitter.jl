@@ -13,11 +13,6 @@ function _icsv_data_rows(path::AbstractString)
 end
 
 @testset "OutputSplitter with ICSV (1h blocks)" begin
-    if !Base.isdefined(PEDDY, :ICSVOutput)
-        @info "ICSVOutput not available (PYiCSV failed to load); skipping OutputSplitter ICSV tests"
-        return
-    end
-
     # Build HF dataset: 2h10m at 10-minute resolution -> 3 blocks
     vars = [:Ux, :Uy]
     start = DateTime(2024, 1, 1, 0, 0, 0)
