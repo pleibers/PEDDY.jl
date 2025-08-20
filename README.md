@@ -13,7 +13,18 @@ PEDDY.jl provides a comprehensive framework for eddy covariance data processing,
 - **High-Performance Processing**: Optimized Julia implementation for fast data processing
 - **Sensor Support**: Support for different kind of sensors
 
-A more exhaustive documentation is available at [PEDDY.jl](MISSING) or build the documentation with `docs/make.jl`.
+Documentation and tutorial:
+
+- Tutorial: see `docs/src/index.md` for a practical, example-driven guide.
+- API docs: build locally via `docs/make.jl`.
+
+Quick build hint:
+
+```bash
+# Julia 1.11 is required. If 1.11 is not your default, prefix commands with +1.11
+# (the "+1.11" is not part of Julia syntax, it is a version selector used by juliaup).
+julia +1.11 --project=docs -e 'using Pkg; Pkg.instantiate(); include("docs/make.jl")'
+```
 
 ## Roadmap
 
