@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container:
+      image: julia:1.11
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: julia --project=@. -e 'ENV["JULIA_SSL_NO_VERIFY_HOSTS"] = "pkg.julialang.org,github.com"; using Pkg; Pkg.instantiate()'
+    
+    - name: Run tests with coverage
+      run: julia --project=@. -e 'using Pkg; Pkg.build(); Pkg.test(coverage=true)'
+    
+    - name: Generate coverage report
+      run: |
+        julia --project=@. -e '
+          using Pkg; Pkg.add("Coverage");
+          using Coverage;
+          c, t = get_summary(process_folder());
+          using Printf;
+          @printf "Test coverage %.2f%%\n" 100c / t'
+        
