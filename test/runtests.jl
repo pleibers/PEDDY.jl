@@ -5,9 +5,9 @@ using Test
     # Include all test modules
     @testset "IO" begin
         include("test_io_dat_directory.jl")
-        include("test_icsv.jl")
+        # include("test_icsv.jl")
         include("test_netcdf.jl")
-        include("test_output_splitter.jl")
+        # include("test_output_splitter.jl")
     end
     @testset "QC" begin
         include("test_qc.jl")

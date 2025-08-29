@@ -8,6 +8,10 @@ If references in docstrings do not render, they are still kept for completeness.
 
 ## Quick start (no prior Julia knowledge required)
 
+### Development environment
+
+If you want to develop PEDDY, you need to follow these steps:
+
 - __Install Julia 1.11__: Download from julialang.org. If 1.11 is not your default, prefix commands with `+1.11` (without parentheses). The `+1.11` selector is provided by juliaup.
 - __Open a Julia REPL in the project__:
 
@@ -16,16 +20,41 @@ If references in docstrings do not render, they are still kept for completeness.
 julia +1.11 --project=.
 ```
 
-- __Instantiate the environment__ (first time only):
+- __Instantiate the environment__ (first time only to install all dependencies):
 
 ```julia
 julia> using Pkg
 julia> Pkg.instantiate()
 ```
 
+### Usage environment
+
+If you want to use PEDDY, you need to have it installed in the environment you are using. with the following command:
+
+```julia
+julia> using Pkg
+julia> Pkg.add("PEDDY")
+```
+
+For the newest version do:
+
+```julia
+julia> using Pkg
+julia> Pkg.add("PEDDY", rev="master")
+```
+
+or (this also works if PEDDY is not registered):
+
+```julia
+julia> using Pkg
+julia> Pkg.add("PEDDY", url="https://github.com/pleibers/PEDDY.jl.git")
+```
+
 ---
 
 ## Quick example (synthetic data)
+
+You need to have PEDDY installed in the environment you are using. If you are in the development environment, make sure it is activated.
 
 This creates tiny high-frequency data in memory and runs a minimal pipeline.
 
