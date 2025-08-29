@@ -1,5 +1,9 @@
 # PEDDY.jl
 
+<p align="center">
+  <img src="docs/assets/logo_scaled.png" alt="PEDDY.jl Logo" width="200"/>
+</p>
+
 [![CI](https://github.com/pleibers/PEDDY.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/pleibers/PEDDY.jl/actions/workflows/ci.yml)
 [![Coverage](https://raw.githubusercontent.com/pleibers/PEDDY.jl/badges/coverage-badge.svg)](https://github.com/pleibers/PEDDY.jl/actions/workflows/ci.yml)
 
