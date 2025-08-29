@@ -83,7 +83,7 @@ process!(pipeline, high_frequency_data, low_frequency_data)
 
 ## Data Format
 
-PEDDY.jl uses `DimensionalData.jl` for efficient, labeled array operations:
+PEDDY.jl uses [DimensionalData.jl](https://rafaqz.github.io/DimensionalData.jl/dev/basics) for efficient, labeled array operations:
 
 ```julia
 # High-frequency data (typically 10-20 Hz)
