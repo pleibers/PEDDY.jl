@@ -1,7 +1,7 @@
 # PEDDY.jl
 
-[![Build Status](https://gitlabext.wsl.ch/patrick.leibersperger/peddy.jl/badges/main/pipeline.svg)](https://gitlabext.wsl.ch/patrick.leibersperger/peddy.jl/pipelines)
-[![Coverage](https://gitlabext.wsl.ch/patrick.leibersperger/peddy.jl/badges/main/coverage.svg)](https://gitlabext.wsl.ch/patrick.leibersperger/peddy.jl/commits/main)
+[![CI](https://github.com/pleibers/PEDDY.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/pleibers/PEDDY.jl/actions/workflows/ci.yml)
+[![Coverage](https://raw.githubusercontent.com/pleibers/PEDDY.jl/badges/coverage-badge.svg)](https://github.com/pleibers/PEDDY.jl/actions/workflows/ci.yml)
 
 A Julia package for processing eddy covariance data with a modular, high-performance pipeline architecture.
 
