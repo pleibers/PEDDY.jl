@@ -1,15 +1,15 @@
-using iCSV
+using InteroperableCSV
 using Dates
 
 """
     ICSVOutput(; base_filename, location, fields=DEFAULT_VARIABLE_METADATA,
                 field_delimiter=",", nodata=-9999.0, other_metadata=Dict())
 
-Output backend that writes data in the `.icsv` format using the `iCSV.jl` package.
+Output backend that writes data in the `.icsv` format using the `InteroperableCSV.jl` package.
 
 Fields:
 - `base_filename::String`: Base path without suffix; `_hf`/`_lf` and `.icsv` are appended.
-- `location`: Site location metadata (accepts `LocationMetadata` or `iCSV.Loc`).
+- `location`: Site location metadata (accepts `LocationMetadata` or `InteroperableCSV.Loc`).
 - `fields::Dict{Symbol,VariableMetadata}`: Per-variable metadata written to the Fields section.
 - `field_delimiter::String`: Delimiter for the data section.
 - `nodata::Float64`: Fill value used for NaN/missing.
@@ -29,11 +29,11 @@ end
 """
     _to_loc(loc)
 
-Convert supported location metadata types to `iCSV.Loc`.
+Convert supported location metadata types to `InteroperableCSV.Loc`.
 """
 _to_loc(loc::Loc) = loc
 function _to_loc(loc::LocationMetadata)
-    # iCSV.Loc expects (x, y, z) where z can be `nothing`; map elevation to z.
+    # InteroperableCSV.Loc expects (x, y, z) where z can be `nothing`; map elevation to z.
     return Loc(loc.latitude, loc.longitude, loc.elevation)
 end
 
@@ -92,7 +92,7 @@ function _save_icsv_dataset(base::AbstractString, ext::AbstractString,
 
     file = ICSVBase(metadata, fields, geometry, columns)
     filename = base * suffix * ext
-    iCSV.write(file, filename)
+    InteroperableCSV.write(file, filename)
 end
 
 """
