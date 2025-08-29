@@ -16,6 +16,7 @@ PEDDY.jl provides a comprehensive framework for eddy covariance data processing,
 Documentation and tutorial:
 
 - Tutorial: see `docs/src/index.md` for a practical, example-driven guide.
+- Best Practice: see `docs/src/best_practice.md` for an opinion on how to use julia in science.
 - API docs: build locally via `docs/make.jl`.
 
 Quick build hint:

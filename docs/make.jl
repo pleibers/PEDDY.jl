@@ -25,4 +25,4 @@ makedocs(;
          repo="",
          remotes=nothing,
          checkdocs=:none,
-         pages=["Home" => "index.md"],)
+         pages=["Home" => "index.md", "Best Practice" => "best_practice.md"],)
