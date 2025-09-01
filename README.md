@@ -114,7 +114,13 @@ Contributions are welcome! Please:
 4. Ensure all tests pass
 5. Submit a pull request
 
-Please follow Julia guidelines and use the `yas` style if possible
+Please follow Julia guidelines and use the `yas` style if possible.
+
+To register the package or a new versoin. Go to a commit and comment:
+
+```text
+@JuliaRegistrator register
+```
 
 ## Authors
 
