@@ -14,6 +14,8 @@ jobs:
     
     steps:
     - uses: actions/checkout@v5
+      with:
+        fetch-depth: 0
     
     - name: Install dependencies
       run: julia --project=@. -e 'ENV["JULIA_SSL_NO_VERIFY_HOSTS"] = "pkg.julialang.org,github.com"; using Pkg; Pkg.instantiate()'
@@ -75,12 +77,13 @@ jobs:
     - name: Deploy badge to badges branch
       if: github.ref == 'refs/heads/main'
       run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
+        # Configure git
+        git config user.email "action@github.com"
+        git config user.name "GitHub Action"
         
         # Create or switch to badges branch
-        git fetch origin badges:badges 2>/dev/null || git checkout --orphan badges
-        git checkout badges 2>/dev/null || git switch --orphan badges
+        git fetch origin badges:badges 2>/dev/null || true
+        git checkout badges 2>/dev/null || git checkout --orphan badges
         
         # Clear branch and add only the badge
         git rm -rf . 2>/dev/null || true
