@@ -68,6 +68,10 @@ jobs:
             println(f, "COVERAGE_PERCENTAGE=$percentage")
           end'
     
+    - name: Install git
+      if: github.ref == 'refs/heads/main'
+      run: apt-get update && apt-get install -y git
+    
     - name: Deploy badge to badges branch
       if: github.ref == 'refs/heads/main'
       run: |
