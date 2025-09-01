@@ -5,7 +5,6 @@
 </p>
 
 [![CI](https://github.com/pleibers/PEDDY.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/pleibers/PEDDY.jl/actions/workflows/ci.yml)
-[![Coverage](https://raw.githubusercontent.com/pleibers/PEDDY.jl/badges/coverage-badge.svg)](https://github.com/pleibers/PEDDY.jl/actions/workflows/ci.yml)
 
 A Julia package for processing eddy covariance data with a modular, high-performance pipeline architecture.
 
@@ -119,7 +118,7 @@ Please follow Julia guidelines and use the `yas` style if possible.
 To register the package or a new versoin. Go to a commit and comment:
 
 ```text
-@JuliaRegistrator register
+@JuliaRwegistrator register
 ```
 
 ## Authors

@@ -23,7 +23,7 @@ jobs:
     - name: Run tests with coverage
       run: julia --project=@. -e 'using Pkg; Pkg.build(); Pkg.test(coverage=true)'
     
-    - name: Calculate coverage and generate badge
+    - name: Print test coverage
       run: |
         julia --project=@. -e '
           using Pkg; Pkg.add("Coverage");
@@ -32,70 +32,5 @@ jobs:
           covered_lines, total_lines = get_summary(coverage);
           using Printf;
           percentage = round(100 * covered_lines / total_lines, digits=1);
-          @printf "Test coverage: %.1f%%\n" percentage;
-          
-          # Determine badge color
-          color = percentage >= 80 ? "brightgreen" : percentage >= 60 ? "yellow" : "red";
-          
-          # Generate SVG badge
-          svg_content = """<?xml version="1.0" encoding="UTF-8"?>
-          <svg xmlns="http://www.w3.org/2000/svg" width="104" height="20">
-            <linearGradient id="b" x2="0" y2="100%">
-              <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
-              <stop offset="1" stop-opacity=".1"/>
-            </linearGradient>
-            <clipPath id="a">
-              <rect width="104" height="20" rx="3" fill="#fff"/>
-            </clipPath>
-            <g clip-path="url(#a)">
-              <path fill="#555" d="M0 0h63v20H0z"/>
-              <path fill="$color" d="M63 0h41v20H63z"/>
-              <path fill="url(#b)" d="M0 0h104v20H0z"/>
-            </g>
-            <g fill="#fff" text-anchor="middle" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="110">
-              <text x="325" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="530">coverage</text>
-              <text x="325" y="140" transform="scale(.1)" textLength="530">coverage</text>
-              <text x="825" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="310">$(percentage)%</text>
-              <text x="825" y="140" transform="scale(.1)" textLength="310">$(percentage)%</text>
-            </g>
-          </svg>""";
-          
-          # Write SVG to file
-          open("coverage-badge.svg", "w") do f
-            write(f, svg_content)
-          end;
-          
-          # Export percentage for GitHub environment
-          open(ENV["GITHUB_ENV"], "a") do f
-            println(f, "COVERAGE_PERCENTAGE=$percentage")
-          end'
-    
-    - name: Install git
-      if: github.ref == 'refs/heads/main'
-      run: apt-get update && apt-get install -y git
-    
-    - name: Deploy badge to badges branch
-      if: github.ref == 'refs/heads/main'
-      run: |
-        # Configure git
-        git config user.email "action@github.com"
-        git config user.name "GitHub Action"
-        
-        # Create or switch to badges branch
-        git fetch origin badges:badges 2>/dev/null || true
-        git checkout badges 2>/dev/null || git checkout --orphan badges
-        
-        # Clear branch and add only the badge
-        git rm -rf . 2>/dev/null || true
-        cp coverage-badge.svg .
-        git add coverage-badge.svg
-        
-        # Commit and push if there are changes
-        if ! git diff --cached --quiet; then
-          git commit -m "Update coverage badge: ${COVERAGE_PERCENTAGE}%"
-          git push origin badges
-        fi
-        
-        # Switch back to main
-        git checkout main
+          @printf "Test coverage: %.1f%% (%d/%d lines)\n" percentage covered_lines total_lines'
         
