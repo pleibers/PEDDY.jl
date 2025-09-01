@@ -21,7 +21,7 @@ end
 
     # Build LF dataset: measurements every 30 minutes covering each block
     lf_times = [start + Minute(30)*(i-1) + Minute(15) for i in 1:5]  # 00:15, 00:45, 01:15, 01:45, 02:15
-    lf_vars = [:Ta, :Pa]
+    lf_vars = [:T, :P]
     lf = DimArray(rand(length(lf_times), length(lf_vars)), (Ti(lf_times), Var(lf_vars)))
 
     tmp = mktempdir()

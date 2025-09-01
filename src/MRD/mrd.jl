@@ -106,10 +106,11 @@ function decompose!(m::OrthogonalMRD, high_frequency_data::DimArray, low_frequen
     # Precompute normalization series if requested
     normalization_series = nothing
     if m.normalize
-        a_full = high_frequency_data[Var(m.a), Ti(1:num_samples)][:]
-        b_full = high_frequency_data[Var(m.b), Ti(1:num_samples)][:]
+        a_full = high_frequency_data[Ti=1:num_samples, Var=At(m.a)][:]
+        b_full = high_frequency_data[Ti=1:num_samples, Var=At(m.b)][:]
         product_series = similar(a_full)
-        @inbounds for i in eachindex(product_series)
+        # @inbounds
+        for i in eachindex(product_series)
             product_series[i] = a_full[i] * b_full[i]
         end
         small_window = 2^11
@@ -141,8 +142,8 @@ function decompose!(m::OrthogonalMRD, high_frequency_data::DimArray, low_frequen
                 push!(block_mid_times, mid_time)
             end
         else
-            a_block = high_frequency_data[Var(m.a), Ti(block_start_index:block_end_index)][:]
-            b_block = high_frequency_data[Var(m.b), Ti(block_start_index:block_end_index)][:]
+            a_block = high_frequency_data[Ti=block_start_index:block_end_index, Var=At(m.a)][:]
+            b_block = high_frequency_data[Ti=block_start_index:block_end_index, Var=At(m.b)][:]
             scale_covariances, scale_stddevs = _mrd_block(a_block, b_block, m.M, m.Mx)
 
             if m.normalize
@@ -174,12 +175,14 @@ function decompose!(m::OrthogonalMRD, high_frequency_data::DimArray, low_frequen
     mrd_mat = fill(NaN, M, nblocks)
     mrd_std_mat = fill(NaN, M, nblocks)
     for (j, col) in enumerate(mrd_columns_per_block)
-        @inbounds for i in 1:min(M, length(col))
+        # @inbounds
+        for i in 1:min(M, length(col))
             mrd_mat[i, j] = col[i]
         end
     end
     for (j, col) in enumerate(mrd_std_columns_per_block)
-        @inbounds for i in 1:min(M, length(col))
+        # @inbounds
+        for i in 1:min(M, length(col))
             mrd_std_mat[i, j] = col[i]
         end
     end
@@ -225,7 +228,8 @@ function _detect_gaps_after(ti_dim, threshold_seconds)
         return flags
     end
     thr = float(threshold_seconds)
-    @inbounds for i in 1:(n - 1)
+    # @inbounds
+    for i in 1:(n - 1)
         dt = ti_dim[i + 1] - ti_dim[i]
         sec = Dates.value(dt) / 1000.0
         flags[i] = (sec > thr)
@@ -272,7 +276,8 @@ function _mrd_block(a::AbstractVector{<:Real}, b::AbstractVector{<:Real}, M::Int
             window_mean_b = mean_skipnan(@view working_b[start_index:(start_index + window_length - 1)])
 
             # Subtract window means in-place
-            @inbounds for t in start_index:(start_index + window_length - 1)
+            # @inbounds
+            for t in start_index:(start_index + window_length - 1)
                 if !isnan(working_a[t])
                     working_a[t] -= window_mean_a
                 end
@@ -316,7 +321,8 @@ function _moving_average_centered(x::AbstractVector{<:Real}, window::Int)
     n = length(x)
     out = Vector{Float64}(undef, n)
     half = window ÷ 2
-    @inbounds for i in 1:n
+    # @inbounds
+    for i in 1:n
         lo = max(1, i - half)
         hi = min(n, i + half)
         out[i] = mean_skipnan(@view x[lo:hi])

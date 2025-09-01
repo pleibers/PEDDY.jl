@@ -109,7 +109,8 @@ function _save_netcdf_dataset(path::AbstractString, out::NetCDFOutput, data::Dim
             # Ensure Float64 storage and apply fill value for missings
             vec = collect(data[Var=At(var)])
             vals = Vector{Float64}(undef, length(vec))
-            @inbounds for i in eachindex(vec)
+            # @inbounds
+            for i in eachindex(vec)
                 v = vec[i]
                 # Treat both `missing` and `NaN` as fill values
                 if v === missing || (v isa AbstractFloat && isnan(v))
@@ -147,7 +148,8 @@ function _prepare_time_values(time_labels)
     if eltype(time_labels) <: DateTime
         epoch = DateTime(1970, 1, 1)
         vals = similar(time_labels, Float64)
-        @inbounds for i in eachindex(time_labels)
+        # @inbounds
+        for i in eachindex(time_labels)
             dt = time_labels[i]
             # seconds since epoch as Float64
             vals[i] = (Dates.value(dt - epoch) / 1000)
@@ -156,7 +158,8 @@ function _prepare_time_values(time_labels)
     elseif eltype(time_labels) <: Date
         epoch = Date(1970, 1, 1)
         vals = similar(time_labels, Float64)
-        @inbounds for i in eachindex(time_labels)
+        # @inbounds
+        for i in eachindex(time_labels)
             d = time_labels[i]
             vals[i] = Float64(Dates.value(d - epoch)) # days since epoch
         end

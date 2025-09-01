@@ -79,12 +79,15 @@ function check_diagnostics!(sensor::LICOR, data::DimArray)
     for i in eachindex(diag_gas_col)
         if diag_gas_col[i] > sensor.diag_gas
             @debug "Discarding record $i due to diagnostic value $(diag_gas_col[i])"
-            data[i, :H2O] = nan
-            data[i, :P] = nan
+            data[Ti=i, Var=At(:H2O)] = nan
+            data[Ti=i, Var=At(:P)] = nan
         end
         if diag_sonic_col[i] != sensor.diag_sonic
             @debug "Discarding record $i due to sonic diagnostic value $(diag_sonic_col[i])"
-            data[i, :Ux] = data[i, :Uy] = data[i, :Uz] = data[i, :Ts] = nan # is this what should be discarded?
+            data[Ti=i, Var=At(:Ux)] = convert(eltype(data), NaN)
+            data[Ti=i, Var=At(:Uy)] = convert(eltype(data), NaN)
+            data[Ti=i, Var=At(:Uz)] = convert(eltype(data), NaN)
+            data[Ti=i, Var=At(:Ts)] = convert(eltype(data), NaN)
         end
     end
 end

@@ -10,7 +10,7 @@ struct PhysicsBoundsCheck{N<:Real,LIM<:Limit{N}} <: AbstractQC
     Ts::LIM
     CO2::LIM
     H2O::LIM
-    Ta::LIM
+    T::LIM
     P::LIM
 end
 
@@ -32,7 +32,7 @@ function PhysicsBoundsCheck(; number_type=Float64, kwargs...)
                               merged_limits[:Ts],
                               merged_limits[:CO2],
                               merged_limits[:H2O],
-                              merged_limits[:Ta],
+                              merged_limits[:T],
                               merged_limits[:P])
 end
 
@@ -43,7 +43,7 @@ function default_physical_limits(; number_type::Type{N}) where {N<:Real} # FAQ: 
                                           :Ts => Limit(N(-50), N(50)),
                                           :CO2 => Limit(N(0), typemax(N)),
                                           :H2O => Limit(N(0), typemax(N)),
-                                          :Ta => Limit(N(-50), N(50)),
+                                          :T => Limit(N(-50), N(50)),
                                           :P => Limit(N(0), typemax(N)))
 end
 
@@ -56,7 +56,8 @@ function check_bounds!(variable::Symbol, data::DimArray,
     n_discarded = 0
     for i in eachindex(col)
         # We only check finite values, NaN and Inf are ignored
-        @inbounds if isfinite(col[i]) && (col[i] < limit.min || col[i] > limit.max)
+        # @inbounds
+        if isfinite(col[i]) && (col[i] < limit.min || col[i] > limit.max)
             n_discarded += 1
             col[i] = convert(N, NaN)
         end

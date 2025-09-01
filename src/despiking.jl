@@ -163,7 +163,8 @@ function calculate_rolling_median(data::AbstractVector, window_size::Int)
     max_possible_window = min(2 * half_window + 1, n)
     valid_buffer = Vector{eltype(data)}(undef, max_possible_window)
     
-    @inbounds for i in 1:n
+    # @inbounds
+    for i in 1:n
         # Define window bounds with center alignment
         start_idx = max(1, i - half_window)
         end_idx = min(n, i + half_window)
@@ -208,7 +209,7 @@ function calculate_pattern_deviation(absolute_deviations::AbstractVector)
     pattern_adjusted_deviations = similar(absolute_deviations)
     
     # Handle boundaries explicitly (faster than conditional in loop)
-    @inbounds begin
+    # @inbounds begin
         # First element: only right neighbor
         pattern_adjusted_deviations[1] = abs_deviations[1] - 0.25 * abs_deviations[2]
         
@@ -220,7 +221,7 @@ function calculate_pattern_deviation(absolute_deviations::AbstractVector)
             neighbor_average = 0.5 * (abs_deviations[i-1] + abs_deviations[i+1])
             pattern_adjusted_deviations[i] = abs_deviations[i] - 0.5 * neighbor_average
         end
-    end
+    # end
     
     return pattern_adjusted_deviations
 end
@@ -273,7 +274,8 @@ function _calculate_mad_normalized_deviations(variable_data::AbstractVector, win
     
     # Calculate absolute deviations from rolling median (reuse this array)
     absolute_deviations = similar(variable_data)
-    @inbounds @simd for i in 1:n
+    # @inbounds
+    @simd for i in 1:n
         absolute_deviations[i] = abs(variable_data[i] - rolling_median_values[i])
     end
     
@@ -284,7 +286,8 @@ function _calculate_mad_normalized_deviations(variable_data::AbstractVector, win
     pattern_adjusted_deviations = calculate_pattern_deviation(absolute_deviations)
     
     # Normalize by MAD with small epsilon to avoid division by zero (reuse pattern_adjusted_deviations)
-    @inbounds @simd for i in 1:n
+    # @inbounds
+    @simd for i in 1:n
         pattern_adjusted_deviations[i] = pattern_adjusted_deviations[i] / (mad_values[i] + 1e-10)
     end
     
@@ -308,7 +311,8 @@ function _apply_spike_threshold_and_remove_for_group!(variable_group::VariableGr
     spikes_detected_count = 0
     
     # Count spikes and apply threshold in single pass
-    @inbounds for time_index in 1:n_time_points
+    # @inbounds
+    for time_index in 1:n_time_points
         if abs(combined_normalized_deviations[time_index]) >= normalized_threshold
             spikes_detected_count += 1
             

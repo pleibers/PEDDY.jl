@@ -40,7 +40,8 @@ export Var
 function mean_skipnan(arr)
     s = zero(eltype(arr))
     c = 0
-    @inbounds for v in arr
+    # @inbounds
+    for v in arr
         if !isnan(v)
             s += v
             c += 1

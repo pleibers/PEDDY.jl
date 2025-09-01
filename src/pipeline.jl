@@ -36,12 +36,12 @@ Fields
                            GA<:OptionalPipelineStep,DR<:OptionalPipelineStep,
                            MRD<:OptionalPipelineStep,O<:AbstractOutput}
     sensor::SI
-    quality_control::QC
-    gas_analyzer::GA
-    despiking::D
-    gap_filling::G
-    double_rotation::DR
-    mrd::MRD
+    quality_control::QC = nothing
+    gas_analyzer::GA = nothing
+    despiking::D = nothing
+    gap_filling::G = nothing
+    double_rotation::DR = nothing
+    mrd::MRD = nothing
     output::O
 end
 

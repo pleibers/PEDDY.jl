@@ -43,7 +43,8 @@ function _per_scale_summary(mrd::AbstractMatrix{<:Real})
     med = similar(mrd, M)
     q25 = similar(mrd, M)
     q75 = similar(mrd, M)
-    @inbounds for i in 1:M
+    # @inbounds
+    for i in 1:M
         row = view(mrd, i, :)
         vals = _nanfilter(collect(row))
         if isempty(vals)

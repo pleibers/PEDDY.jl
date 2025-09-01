@@ -8,7 +8,8 @@ using Statistics
 mean_skipnan(v) = begin
     s = 0.0
     c = 0
-    @inbounds for x in v
+    # @inbounds
+    for x in v
         if !isnan(x)
             s += x
             c += 1

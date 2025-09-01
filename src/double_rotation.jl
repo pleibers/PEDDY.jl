@@ -83,22 +83,24 @@ function rotate!(double_rotation::WindDoubleRotation{N}, high_frequency_data::Di
     for (block_idx, (start_idx, end_idx)) in enumerate(block_indices)
         # Extract wind components for this block
         u_var, v_var, w_var = double_rotation.Ux, double_rotation.Uy, double_rotation.Uz
-        
-        u_data = high_frequency_data[Var(u_var), Ti(start_idx:end_idx)]
-        v_data = high_frequency_data[Var(v_var), Ti(start_idx:end_idx)]
-        w_data = high_frequency_data[Var(w_var), Ti(start_idx:end_idx)]
-        
-        # Create wind matrix [u, v, w]
-        wind_matrix = hcat(u_data[:], v_data[:], w_data[:])
-        
+
+        # Use keyword-based DimensionalData indexing
+        u_data = high_frequency_data[Ti=start_idx:end_idx, Var=At(u_var)]
+        v_data = high_frequency_data[Ti=start_idx:end_idx, Var=At(v_var)]
+        w_data = high_frequency_data[Ti=start_idx:end_idx, Var=At(w_var)]
+
+        # Create wind matrix [u, v, w] as a plain Matrix
+        # Extract parent vectors to avoid DimensionalData wrappers
+        wind_matrix = hcat(parent(u_data), parent(v_data), parent(w_data))
+
         # Apply double rotation
         wind_rotated, theta, phi = _apply_double_rotation(wind_matrix)
-        
+
         # Update data in-place with rounded values (5 decimal places)
-        high_frequency_data[Var(u_var), Ti(start_idx:end_idx)] .= round.(wind_rotated[:, 1], digits=5)
-        high_frequency_data[Var(v_var), Ti(start_idx:end_idx)] .= round.(wind_rotated[:, 2], digits=5)
-        high_frequency_data[Var(w_var), Ti(start_idx:end_idx)] .= round.(wind_rotated[:, 3], digits=5)
-        
+        high_frequency_data[Ti=start_idx:end_idx, Var=At(u_var)] .= round.(wind_rotated[:, 1], digits=6)
+        high_frequency_data[Ti=start_idx:end_idx, Var=At(v_var)] .= round.(wind_rotated[:, 2], digits=6)
+        high_frequency_data[Ti=start_idx:end_idx, Var=At(w_var)] .= round.(wind_rotated[:, 3], digits=6)
+
         # Store rotation angles
         push!(rotation_angles, (theta=theta, phi=phi))
     end
