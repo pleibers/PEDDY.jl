@@ -6,7 +6,7 @@ implementations included from the `src/IO/` directory.
 """
 
 # Output
-# export ICSVOutput
+export ICSVOutput
 export NetCDFOutput
 export MemoryOutput
 export OutputSplitter
@@ -65,7 +65,7 @@ Fields:
     instrument_height::Union{Float64, Nothing} = nothing
 end
 
-# include("icsv.jl")
+include("icsv.jl")
 include("netcdf.jl")
 include("output_splitter.jl")
 include("memory_output.jl")
