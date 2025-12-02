@@ -71,7 +71,12 @@ end
 function control_physical_limits!(qc::PhysicsBoundsCheck, data::DimArray, sensor::S;
                                   kwargs...) where {S<:AbstractSensor}
     for variable in has_variables(sensor)
-        check_bounds!(variable, data, qc)
+        # Not every sensor variable has a corresponding physical limit (e.g. diagnostics)
+        if hasproperty(qc, variable)
+            check_bounds!(variable, data, qc)
+        else
+            @debug "Skipping limit check for variable without configured bounds" variable sensor=typeof(sensor)
+        end
     end
 end
 

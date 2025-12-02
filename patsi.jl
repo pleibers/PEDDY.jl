@@ -25,8 +25,14 @@ pipeline = PEDDY.EddyPipeline(; sensor = sensor,
 )
 
 # Data setup
-datapath = raw"H:\_SILVEX II 2025\Data\EC data\Silvia 2 (oben)\PEDDY\input\\"
-outputpath = raw"H:\_SILVEX II 2025\Data\EC data\Silvia 2 (oben)\PEDDY\output\\"
+
+# SLF PC
+#datapath = raw"H:\_SILVEX II 2025\Data\EC data\Silvia 2 (oben)\PEDDY\input\\"
+#outputpath = raw"H:\_SILVEX II 2025\Data\EC data\Silvia 2 (oben)\PEDDY\output\\"
+
+# Mac
+datapath = raw"/Volumes/Expansion/Data/SILVEX II/Silvia 2 (oben)/PEDDY/input"
+outputpath = raw"/Volumes/Expansion/Data/SILVEX II/Silvia 2 (oben)/PEDDY/output"
 
 fo = PEDDY.FileOptions(
     header = 1,

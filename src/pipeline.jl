@@ -5,7 +5,7 @@ export check_data
 using ProgressMeter
 
 """
-    EddyPipeline(; sensor, quality_control, gas_analyzer, despiking, gap_filling,
+    EddyPipeline(; sensor, quality_control, gas_analyzer, despiking, make_continuous, gap_filling,
                   double_rotation, mrd, output)
 
 High-level orchestrator for the PEDDY.jl processing pipeline.
@@ -16,29 +16,32 @@ interface. Any step can be set to `nothing` to skip it. The typical order is:
 1. Quality control (`quality_control!`)
 2. Gas analyzer correction (`correct_gas_analyzer!`)
 3. Despiking (`despike!`)
-4. Gap filling (`fill_gaps!`)
-5. Double rotation (`rotate!`)
-6. MRD decomposition (`decompose!`)
-7. Output writing (`write_data`)
+4. Make continuous (`make_continuous!`) – insert missing timestamps with NaNs
+5. Gap filling / interpolation (`fill_gaps!`)
+6. Double rotation (`rotate!`)
+7. MRD decomposition (`decompose!`)
+8. Output writing (`write_data`)
 
 Fields
 - `sensor::AbstractSensor`: Sensor providing metadata (and coefficients)
 - `quality_control::OptionalPipelineStep`
 - `gas_analyzer::OptionalPipelineStep`
 - `despiking::OptionalPipelineStep`
+- `make_continuous::OptionalPipelineStep`
 - `gap_filling::OptionalPipelineStep`
 - `double_rotation::OptionalPipelineStep`
 - `mrd::OptionalPipelineStep`
 - `output::AbstractOutput`: Writer implementation
 """
 @kwdef struct EddyPipeline{SI<:AbstractSensor,QC<:OptionalPipelineStep,
-                           D<:OptionalPipelineStep,G<:OptionalPipelineStep,
+                           D<:OptionalPipelineStep,MC<:OptionalPipelineStep,G<:OptionalPipelineStep,
                            GA<:OptionalPipelineStep,DR<:OptionalPipelineStep,
                            MRD<:OptionalPipelineStep,O<:AbstractOutput}
     sensor::SI
     quality_control::QC = nothing
     gas_analyzer::GA = nothing
     despiking::D = nothing
+    make_continuous::MC = nothing
     gap_filling::G = nothing
     double_rotation::DR = nothing
     mrd::MRD = nothing
@@ -64,6 +67,11 @@ end
 function fill_gaps!(gap_filling::Nothing, high_frequency_data, low_frequency_data;
                     kwargs...)
     return nothing
+end
+"""No-op make_continuous when `make_continuous` is `nothing`."""
+function make_continuous!(make_continuous::Nothing, high_frequency_data, low_frequency_data;
+                          kwargs...)
+    return high_frequency_data
 end
 """No-op double rotation when `double_rotation` is `nothing`."""
 function rotate!(double_rotation::Nothing, high_frequency_data, low_frequency_data;
@@ -101,6 +109,10 @@ function process!(pipeline::EddyPipeline, high_frequency_data::DimArray, low_fre
 
     next!(prog; showvalues=[("Status", "Removing Spikes...")], spinner="🦔")
     despike!(pipeline.despiking, high_frequency_data, low_frequency_data; kwargs...)
+
+    next!(prog; showvalues=[("Status", "Making Time Continuous...")], spinner="⏱️")
+    high_frequency_data = make_continuous!(pipeline.make_continuous, high_frequency_data,
+                                           low_frequency_data; kwargs...)
 
     next!(prog; showvalues=[("Status", "Filling Gaps...")], spinner="🧩")
     fill_gaps!(pipeline.gap_filling, high_frequency_data, low_frequency_data; kwargs...)
