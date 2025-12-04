@@ -20,12 +20,12 @@ using Glob
 # Data setup
 
 # SLF PC
-# input_path = raw"H:\_SILVEX II 2025\Data\EC data\Silvia 2 (oben)\PEDDY\input\\"
-# output_path = raw"H:\_SILVEX II 2025\Data\EC data\Silvia 2 (oben)\PEDDY\output\mrd\\"
+input_path = raw"H:\_SILVEX II 2025\Data\EC data\Silvia 2 (oben)\PEDDY\output\\"
+output_path = raw"H:\_SILVEX II 2025\Data\EC data\Silvia 2 (oben)\PEDDY\output\mrd\\"
 
 # MacBook (HDD)
-input_path = raw"/Volumes/Expansion/Data/SILVEX II/Silvia 2 (oben)/PEDDY/output"
-output_path = raw"/Volumes/Expansion/Data/SILVEX II/Silvia 2 (oben)/PEDDY/output/mrd"
+#input_path = raw"/Volumes/Expansion/Data/SILVEX II/Silvia 2 (oben)/PEDDY/output"
+#output_path = raw"/Volumes/Expansion/Data/SILVEX II/Silvia 2 (oben)/PEDDY/output/mrd"
 
 # Output base filename
 output_base = "SILVEXII_Silvia2_1m"
@@ -61,7 +61,7 @@ function read_processed_dimarray(path::AbstractString, opts::PEDDY.FileOptions; 
     DimArray(data, (PEDDY.Ti(timestamps), PEDDY.Var(vars)))
 end
 
-processed_files = Glob.glob("*_SILVEXII_Silvia2_1m.dat", input_path)
+processed_files = Glob.glob("*SILVEXII_Silvia2_1m.dat", input_path)
 
 if isempty(processed_files)
     error("No processed sonic files found in $(input_path). Patterns tried: $processed_files and fallback.")

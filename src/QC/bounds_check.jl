@@ -48,23 +48,31 @@ function default_physical_limits(; number_type::Type{N}) where {N<:Real} # FAQ: 
 end
 
 function check_bounds!(variable::Symbol, data::DimArray,
-                       physical_limits::PhysicsBoundsCheck{N,LIM}) where {N<:Real,
+                       physical_limits::PhysicsBoundsCheck{N,LIM}; kwargs...) where {N<:Real,
                                                                           LIM<:Limit{N}}
     col = view(data, Var(At(variable)))
     limit = getfield(physical_limits, variable)
+    logger = get(kwargs, :logger, nothing)
 
     n_discarded = 0
+    exceed_indices = logger === nothing ? nothing : Int[]
     for i in eachindex(col)
         # We only check finite values, NaN and Inf are ignored
         # @inbounds
         if isfinite(col[i]) && (col[i] < limit.min || col[i] > limit.max)
             n_discarded += 1
+            logger === nothing || push!(exceed_indices, i)
             col[i] = convert(N, NaN)
         end
     end
 
     if n_discarded > 0
         @debug "Plausibility limits for '$variable': Discarding $n_discarded records outside of [$(limit.min), $(limit.max)] range."
+        if logger !== nothing && exceed_indices !== nothing && !isempty(exceed_indices)
+            times = collect(dims(data, Ti))
+            log_index_runs!(logger, :quality_control, :physical_limit, variable, times, exceed_indices;
+                            include_run_length=true, min_limit=limit.min, max_limit=limit.max)
+        end
     end
 end
 
@@ -73,7 +81,7 @@ function control_physical_limits!(qc::PhysicsBoundsCheck, data::DimArray, sensor
     for variable in has_variables(sensor)
         # Not every sensor variable has a corresponding physical limit (e.g. diagnostics)
         if hasproperty(qc, variable)
-            check_bounds!(variable, data, qc)
+            check_bounds!(variable, data, qc; kwargs...)
         else
             @debug "Skipping limit check for variable without configured bounds" variable sensor=typeof(sensor)
         end
@@ -83,6 +91,6 @@ end
 function quality_control!(qc::PhysicsBoundsCheck, high_frequency_data::DimArray,
                           low_frequency_data, sensor::S;
                           kwargs...) where {S<:AbstractSensor}
-    check_diagnostics!(sensor, high_frequency_data)
+    check_diagnostics!(sensor, high_frequency_data; kwargs...)
     return control_physical_limits!(qc, high_frequency_data, sensor; kwargs...)
 end

@@ -10,7 +10,7 @@ function main()
 
     # File discovery: choose the latest processed file written by runprocessing.jl
     # Pattern: yyyy-mm-dd_HHMM_SILVEXII_Silvia2_1m.dat
-    processed_files = Glob.glob(joinpath(outputpath, "*_SILVEXII_Silvia2_1m.dat"))
+    processed_files = Glob.glob(joinpath(outputpath, "*SILVEXII_Silvia2_1m.dat"))
     isempty(processed_files) && error("No processed files found in output path: " * outputpath)
     processed_files = sort(processed_files; by=f->stat(f).mtime)
     processed_path = processed_files[end]

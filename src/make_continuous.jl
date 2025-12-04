@@ -45,6 +45,7 @@ function make_continuous!(mc::MakeContinuous, high_frequency_data::DimArray, low
 
     step_ns = Millisecond(mc.step_size_ms)
     max_gap = Minute(mc.max_gap_minutes)
+    logger = get(kwargs, :logger, nothing)
 
     # Accumulate row indices needing insertion specs
     gaps_to_fill = Vector{Tuple{Int,Vector{DateTime}}}()
@@ -54,6 +55,7 @@ function make_continuous!(mc::MakeContinuous, high_frequency_data::DimArray, low
         t_cur = times[i]
         D = t_cur - t_prev
         if D > step_ns
+            inserted_points = 0
             if D <= max_gap
                 # Generate intermediate timestamps (exclusive of t_prev, inclusive exclusive of t_cur)
                 missing = DateTime[]
@@ -64,9 +66,17 @@ function make_continuous!(mc::MakeContinuous, high_frequency_data::DimArray, low
                 end
                 if !isempty(missing)
                     push!(gaps_to_fill, (i-1, missing))  # insert after index i-1
+                    inserted_points = length(missing)
                 end
             else
                 @warn "Skipping large gap > max_gap_minutes" gap_minutes=Dates.value(D)/60000.0 max_gap_minutes=mc.max_gap_minutes start=t_prev stop=t_cur
+            end
+            if logger !== nothing
+                log_event!(logger, :make_continuous, :time_gap;
+                           start_time=t_prev, end_time=t_cur,
+                           filled=(D <= max_gap),
+                           inserted_points=inserted_points,
+                           gap_seconds=Dates.value(D)/1000)
             end
         end
     end

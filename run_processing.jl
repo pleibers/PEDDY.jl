@@ -40,6 +40,8 @@ catch
 end
 @info "Using project" active_project=Base.active_project() pedddy_path=ped_path has_make=:MakeContinuous in names(PEDDY)
 
+logger = PEDDY.ProcessingLogger()
+
 # Sensor setup
 sensor = PEDDY.IRGASON()
 needed_cols = collect(PEDDY.needs_data_cols(sensor))
@@ -47,26 +49,26 @@ needed_cols = collect(PEDDY.needs_data_cols(sensor))
 # Data setup
 
 # SLF PC
-# input_dir = raw"H:\_SILVEX II 2025\Data\EC data\Silvia 2 (oben)\PEDDY\input\\"
-# output_dir = raw"H:\_SILVEX II 2025\Data\EC data\Silvia 2 (oben)\PEDDY\output\\"
+input_dir = raw"H:\_SILVEX II 2025\Data\EC data\Silvia 2 (oben)\PEDDY\input\\"
+output_dir = raw"H:\_SILVEX II 2025\Data\EC data\Silvia 2 (oben)\PEDDY\output\\"
 
 # Mac
-input_dir = raw"/Volumes/Expansion/Data/SILVEX II/Silvia 2 (oben)/PEDDY/input"
-output_dir = raw"/Volumes/Expansion/Data/SILVEX II/Silvia 2 (oben)/PEDDY/output"
+# input_dir = raw"/Volumes/Expansion/Data/SILVEX II/Silvia 2 (oben)/PEDDY/input"
+# output_dir = raw"/Volumes/Expansion/Data/SILVEX II/Silvia 2 (oben)/PEDDY/output"
 
-input_files = "SILVEXII_Silvia2_sonics_002_1m.dat"
+input_files = "SILVEXII_Silvia2_sonics_011_1m.dat"
 output_files = "_SILVEXII_Silvia2_1m.dat"
 
 # Set up pipeline components
 output = PEDDY.MemoryOutput()
-gap_filling = PEDDY.GeneralInterpolation(; max_gap_size = 40,
+gap_filling = PEDDY.GeneralInterpolation(; max_gap_size = 20,
                                         variables = needed_cols,
                                         method = PEDDY.Linear())
 
 pipeline = PEDDY.EddyPipeline(; sensor = sensor,
                             quality_control = PEDDY.PhysicsBoundsCheck(),
                             despiking = PEDDY.SimpleSigmundDespiking(window_minutes = 5.0),
-                            make_continuous = PEDDY.MakeContinuous(; step_size_ms=50, max_gap_minutes=15.0),
+                            make_continuous = PEDDY.MakeContinuous(; step_size_ms = 50, max_gap_minutes= 5.0),
                             gap_filling = gap_filling,
                             gas_analyzer = nothing,
                             double_rotation = PEDDY.WindDoubleRotation(block_duration_minutes = 1.0),
@@ -88,6 +90,15 @@ input = PEDDY.DotDatDirectory(
     low_frequency_file_glob = nothing,
     low_frequency_file_options = nothing,
 )
+
+matching_inputs = sort(Glob.glob(joinpath(input_dir, input_files)))
+if isempty(matching_inputs)
+    error("No input files matched pattern $(input_files) under $(input_dir).")
+end
+println("Processing $(length(matching_inputs)) input file(s):")
+for (idx, file_path) in enumerate(matching_inputs)
+    println("  [", idx, "/", length(matching_inputs), "] ", file_path)
+end
 
 # Helpers
 format_ts(t) = t isa Dates.AbstractDateTime ? Dates.format(t, dateformat"yyyy-mm-ddTHH:MM:SS.s") : string(t)
@@ -141,12 +152,41 @@ function write_dimarray_dat(data, filepath; delim = ",")
     end
 end
 
+function write_chunked_dimarray_dat(data, output_dir, output_suffix;
+                                   chunk_duration = Minute(30), delim = ",")
+    ti_dim = PEDDY.dims(data, PEDDY.Ti)
+    ti = collect(ti_dim)
+    isempty(ti) && return String[]
+    n = length(ti)
+    chunk_paths = String[]
+    start_idx = 1
+    while start_idx <= n
+        start_time = ti[start_idx]
+        chunk_end_exclusive = start_time + chunk_duration
+        end_idx = start_idx
+        while end_idx <= n && ti[end_idx] < chunk_end_exclusive
+            end_idx += 1
+        end
+        end_idx = min(end_idx - 1, n)
+        end_idx = max(end_idx, start_idx)
+        chunk = data[Ti=start_idx:end_idx]
+        chunk_prefix = Dates.format(start_time, dateformat"yyyy-mm-dd_HHMM")
+        chunk_filename = string(chunk_prefix, output_suffix)
+        chunk_path = joinpath(output_dir, chunk_filename)
+        write_dimarray_dat(chunk, chunk_path; delim=delim)
+        push!(chunk_paths, chunk_path)
+        start_idx = end_idx + 1
+    end
+    return chunk_paths
+end
+
 # Read data and keep copy of raw data
 hf, lf = PEDDY.read_data(input, sensor)
 hf_raw = deepcopy(hf)
 
-# Run pipeline
-PEDDY.process!(pipeline, hf, lf)
+# Run pipeline with logging
+pipeline_runtime = @elapsed PEDDY.process!(pipeline, hf, lf; logger=logger)
+PEDDY.record_stage_time!(logger, :run_processing_script, pipeline_runtime)
 
 # Get results
 processed_sonicdata, _ = PEDDY.get_results(output)
@@ -162,14 +202,15 @@ for (k, v) in count_errors(processed_sonicdata)
     println(rpad(String(k), 10), ": ", v)
 end
 
-# Build processed filename from first timestamp
+# Build processed filenames per 30-minute chunk
 mkpath(output_dir)
-ddims_hf = PEDDY.dims(hf)
-ti_hf = collect(ddims_hf[findfirst(x -> x isa PEDDY.Ti, ddims_hf)])
-first_ts = ti_hf[1]
-ts_prefix = Dates.format(first_ts, dateformat"yyyy-mm-dd_HHMM")
-output_filename = string(ts_prefix, output_files)
-output_path = joinpath(output_dir, output_filename)
+chunk_paths = write_chunked_dimarray_dat(processed_sonicdata, output_dir, output_files;
+                                         chunk_duration=Minute(30), delim=",")
+for path in chunk_paths
+    println("Wrote processed file ", path)
+end
 
-write_dimarray_dat(processed_sonicdata, output_path; delim = ",")
-println("Wrote processed file ", output_path)
+first_chunk_path = isempty(chunk_paths) ? joinpath(output_dir, "processing") : chunk_paths[1]
+log_path = replace(first_chunk_path, ".dat" => "_processing_log.csv")
+PEDDY.write_processing_log(logger, log_path)
+println("Wrote processing log ", log_path)
