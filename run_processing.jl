@@ -43,21 +43,21 @@ end
 logger = PEDDY.ProcessingLogger()
 
 # Sensor setup
-sensor = PEDDY.IRGASON()
+sensor = PEDDY.CSAT3B()
 needed_cols = collect(PEDDY.needs_data_cols(sensor))
 
 # Data setup
 
 # SLF PC
 input_dir = raw"H:\_SILVEX II 2025\Data\EC data\Silvia 2 (oben)\PEDDY\input\\"
-output_dir = raw"H:\_SILVEX II 2025\Data\EC data\Silvia 2 (oben)\PEDDY\output\\"
+output_dir = raw"H:\_SILVEX II 2025\Data\EC data\Silvia 2 (oben)\PEDDY\output\3m\\"
 
 # Mac
 # input_dir = raw"/Volumes/Expansion/Data/SILVEX II/Silvia 2 (oben)/PEDDY/input"
 # output_dir = raw"/Volumes/Expansion/Data/SILVEX II/Silvia 2 (oben)/PEDDY/output"
 
-input_files = "SILVEXII_Silvia2_sonics_011_1m.dat"
-output_files = "_SILVEXII_Silvia2_1m.dat"
+input_files = "SILVEXII_Silvia2_sonics_105_3m.dat"
+output_files = "_SILVEXII_Silvia2_3m.dat"
 
 # Set up pipeline components
 output = PEDDY.MemoryOutput()

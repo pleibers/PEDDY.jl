@@ -10,7 +10,7 @@ Standalone script to:
 Adjust the three path/base variables below as needed.
 """
 
-using PEDDY, Dates, Statistics, CSV
+using PEDDY, Dates, Statistics, CSV, DataFrames
 using DimensionalData
 using Plots
 using LaTeXStrings
@@ -20,7 +20,7 @@ using Glob
 # Data setup
 
 # SLF PC
-input_path = raw"H:\_SILVEX II 2025\Data\EC data\Silvia 2 (oben)\PEDDY\output\\"
+input_path = raw"H:\_SILVEX II 2025\Data\EC data\Silvia 2 (oben)\PEDDY\output\1m\\"
 output_path = raw"H:\_SILVEX II 2025\Data\EC data\Silvia 2 (oben)\PEDDY\output\mrd\\"
 
 # MacBook (HDD)
@@ -29,6 +29,8 @@ output_path = raw"H:\_SILVEX II 2025\Data\EC data\Silvia 2 (oben)\PEDDY\output\m
 
 # Output base filename
 output_base = "SILVEXII_Silvia2_1m"
+plot_only = false
+mrd_stats_path_override = nothing
 
 # Ensure output directory exists
 mkpath(output_path)
@@ -46,10 +48,12 @@ fo = PEDDY.FileOptions(
 # (Mirrors internal logic of PEDDY.read_data for one HF file.)
 # ---------------------------------------------------------------------------
 
-function read_processed_dimarray(path::AbstractString, opts::PEDDY.FileOptions; N::Type{T}=Float64) where {T<:Real}
+function read_processed_dimarray(path::AbstractString, opts::PEDDY.FileOptions; N::Type{T}=Float64,
+                                 strip_quotes::Bool=true) where {T<:Real}
     tscol = opts.timestamp_column
     types_map = Dict(tscol => DateTime)
-    f = CSV.File(path; header=opts.header, delim=opts.delimiter, comment=opts.comment,
+    source = strip_quotes ? IOBuffer(replace(read(path, String), '"' => "")) : path
+    f = CSV.File(source; header=opts.header, delim=opts.delimiter, comment=opts.comment,
                  types=types_map, dateformat=opts.time_format)
     timestamps = f[tscol]
     # All remaining columns except timestamp are variables
@@ -61,7 +65,7 @@ function read_processed_dimarray(path::AbstractString, opts::PEDDY.FileOptions; 
     DimArray(data, (PEDDY.Ti(timestamps), PEDDY.Var(vars)))
 end
 
-processed_files = Glob.glob("*SILVEXII_Silvia2_1m.dat", input_path)
+processed_files = Glob.glob("2025-06-*_SILVEXII_Silvia2_1m.dat", input_path)
 
 if isempty(processed_files)
     error("No processed sonic files found in $(input_path). Patterns tried: $processed_files and fallback.")
@@ -101,17 +105,11 @@ end
 @info "Combined processed sonic data" nfiles=length(arrays) ntimes=length(collect(PEDDY.dims(processed_sonic)[findfirst(x-> x isa PEDDY.Ti, PEDDY.dims(processed_sonic))]))
 
 # ---------------------------------------------------------------------------
-# MRD computation
+# MRD computation helpers
 # ---------------------------------------------------------------------------
-mrd = PEDDY.OrthogonalMRD(M=14, normalize=true)
-PEDDY.decompose!(mrd, processed_sonic, nothing)  # low-frequency data is not used here
-res = PEDDY.get_mrd_results(mrd)
 
-# ---------------------------------------------------------------------------
-# Export MRD stats (.dat)
-# ---------------------------------------------------------------------------
-function write_mrd_dat(res, filepath; delim = ",")
-    scales = res.scales
+function summarize_mrd(res)::NamedTuple
+    scales = collect(res.scales)
     A = res.mrd  # M x nblocks
     M, _ = size(A)
     med = Vector{Float64}(undef, M)
@@ -128,9 +126,17 @@ function write_mrd_dat(res, filepath; delim = ",")
             q75[i] = Statistics.quantile(vals, 0.75)
         end
     end
+    return (; scales, median = med, q25, q75)
+end
+
+function write_mrd_dat(summary, filepath; delim = ",")
+    scales = summary.scales
+    med = summary.median
+    q25 = summary.q25
+    q75 = summary.q75
     open(filepath, "w") do io
         println(io, join(["scale_s", "median", "q25", "q75"], delim))
-        for i in 1:M
+        for i in 1:length(scales)
             println(io, string(scales[i], delim,
                                isnan(med[i]) ? "NaN" : string(med[i]), delim,
                                isnan(q25[i]) ? "NaN" : string(q25[i]), delim,
@@ -139,9 +145,32 @@ function write_mrd_dat(res, filepath; delim = ",")
     end
 end
 
-mrd_dat_path = joinpath(output_path, output_base * "_mrd.dat")
-write_mrd_dat(res, mrd_dat_path)
-@info "Wrote MRD statistics" mrd_dat_path
+function read_mrd_summary(filepath; delim = ",")
+    tbl = CSV.read(filepath, DataFrame; delim=delim)
+    scales = collect(tbl[:, :scale_s])
+    med = collect(Float64.(tbl[:, :median]))
+    q25 = collect(Float64.(tbl[:, :q25]))
+    q75 = collect(Float64.(tbl[:, :q75]))
+    return (; scales, median = med, q25, q75)
+end
+
+mrd_dat_path = plot_only && mrd_stats_path_override !== nothing ? mrd_stats_path_override : joinpath(output_path, output_base * "_mrd.dat")
+
+summary_stats = nothing
+if plot_only
+    @info "Plot-only mode: reading MRD stats" mrd_dat_path
+    summary_stats = read_mrd_summary(mrd_dat_path)
+else
+    mrd = PEDDY.OrthogonalMRD(M=16, normalize=true)
+    PEDDY.decompose!(mrd, processed_sonic, nothing)
+    res = PEDDY.get_mrd_results(mrd)
+    if res === nothing
+        error("MRD decomposition produced no results; cannot continue")
+    end
+    summary_stats = summarize_mrd(res)
+    write_mrd_dat(summary_stats, mrd_dat_path)
+    @info "Wrote MRD statistics" mrd_dat_path
+end
 
 # ---------------------------------------------------------------------------
 # Plot (summary)
@@ -152,25 +181,41 @@ try
     ddims = PEDDY.dims(processed_sonic)
     ti = collect(ddims[findfirst(x -> x isa PEDDY.Ti, ddims)])
     title_str = "MRD " * fmt_title(ti[1]) * " - " * fmt_title(ti[end])
-    finite_scales = filter(x -> isfinite(x) && x > 0, res.scales)
+    finite_scales = filter(x -> isfinite(x) && x > 0, summary_stats.scales)
+    median_vals = summary_stats.median .* 1000.0
+    q25_vals = summary_stats.q25 .* 1000.0
+    q75_vals = summary_stats.q75 .* 1000.0
+    plt_kwargs = (
+        title = title_str,
+        xminorgrid = true,
+        minorgrid = true,
+        xlabel = L"\tau [\mathrm{s}]",
+        ylabel = L"C_{T_s w} [10^{-3} \mathrm{K m s}^{-1}]",
+        legend = :topright,
+        xscale = :log10,
+    )
+    plt = plot()
     if !isempty(finite_scales)
         lo = floor(Int, log10(minimum(finite_scales)))
         hi = ceil(Int, log10(maximum(finite_scales)))
         decade_positions = [10.0^k for k in lo:hi]
         decade_labels = [LaTeXString("10^{$k}") for k in lo:hi]
-        plt = plot(mrd; kind=:summary, metric=:mrd, logscale=true,
-                   title=title_str, xticks=(decade_positions, decade_labels),
-                   xminorgrid=true, minorgrid=true,
-                   xlabel=L"\tau [\mathrm{s}]",
-                   ylabel=L"C_{T_s w} [10^{-3} \mathrm{K m s}^{-1}]")
-        savefig(plt, summary_pdf)
+        plt = plot(summary_stats.scales, median_vals;
+                   xticks=(decade_positions, decade_labels),
+                   plt_kwargs...,
+                   label="median")
     else
-        plt = plot(mrd; kind=:summary, metric=:mrd, logscale=true,
-                   title=title_str, xminorgrid=true, minorgrid=true,
-                   xlabel=L"\tau [\mathrm{s}]",
-                   ylabel=L"C_{w T_s} [10^{-3} \mathrm{K m s}^{-1}]")
-        savefig(plt, summary_pdf)
+        plt = plot(summary_stats.scales, median_vals;
+                   plt_kwargs...,
+                   label="median")
     end
+    plot!(plt, summary_stats.scales, q75_vals;
+          fillrange=q25_vals,
+          label="quartile range",
+          fillalpha=0.25,
+          linealpha=0.0,
+          linecolor=:transparent)
+    savefig(plt, summary_pdf)
     @info "Saved MRD summary plot" summary_pdf
 catch e
     @warn "MRD plotting skipped" error=e
