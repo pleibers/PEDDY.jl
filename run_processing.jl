@@ -43,35 +43,44 @@ end
 logger = PEDDY.ProcessingLogger()
 
 # Sensor setup
-sensor = PEDDY.CSAT3B()
+sensor = PEDDY.IRGASON()
 needed_cols = collect(PEDDY.needs_data_cols(sensor))
 
 # Data setup
 
 # SLF PC
-input_dir = raw"H:\_SILVEX II 2025\Data\EC data\Silvia 2 (oben)\PEDDY\input\\"
-output_dir = raw"H:\_SILVEX II 2025\Data\EC data\Silvia 2 (oben)\PEDDY\output\3m\\"
+input_dir = raw"D:\SILVEX II 2025\EC data\Silvia 2 (oben)\PEDDY\input"
+#raw"H:\_SILVEX II 2025\Data\EC data\Silvia 2 (oben)\PEDDY\input\\"
+output_dir = raw"D:\SILVEX II 2025\EC data\Silvia 2 (oben)\PEDDY\output\1m"
+#raw"H:\_SILVEX II 2025\Data\EC data\Silvia 2 (oben)\PEDDY\output\3m\\"
 
 # Mac
 # input_dir = raw"/Volumes/Expansion/Data/SILVEX II/Silvia 2 (oben)/PEDDY/input"
 # output_dir = raw"/Volumes/Expansion/Data/SILVEX II/Silvia 2 (oben)/PEDDY/output"
 
-input_files = "SILVEXII_Silvia2_sonics_105_3m.dat"
-output_files = "_SILVEXII_Silvia2_3m.dat"
+input_files = "SILVEXII_Silvia2_sonics_*_1m.dat"
+output_files = "_SILVEXII_Silvia2_1m.dat"
 
 # Set up pipeline components
 output = PEDDY.MemoryOutput()
+
+wind_group = PEDDY.VariableGroup("Wind Components", [:Ux, :Uy, :Uz, :Ts], spike_threshold = 6.0)
+gas_group  = PEDDY.VariableGroup("Gas Analyzer", [:H2O, :CO2], spike_threshold = 6.0)
+
+despiking = PEDDY.SimpleSigmundDespiking(window_minutes = 5.0,
+                                        variable_groups = [wind_group, gas_group])
+
 gap_filling = PEDDY.GeneralInterpolation(; max_gap_size = 20,
                                         variables = needed_cols,
                                         method = PEDDY.Linear())
 
 pipeline = PEDDY.EddyPipeline(; sensor = sensor,
                             quality_control = PEDDY.PhysicsBoundsCheck(),
-                            despiking = PEDDY.SimpleSigmundDespiking(window_minutes = 5.0),
+                            despiking = despiking,
                             make_continuous = PEDDY.MakeContinuous(; step_size_ms = 50, max_gap_minutes= 5.0),
                             gap_filling = gap_filling,
                             gas_analyzer = nothing,
-                            double_rotation = PEDDY.WindDoubleRotation(block_duration_minutes = 1.0),
+                            double_rotation = nothing,
                             output = output)
 
 # Input options
@@ -91,7 +100,7 @@ input = PEDDY.DotDatDirectory(
     low_frequency_file_options = nothing,
 )
 
-matching_inputs = sort(Glob.glob(joinpath(input_dir, input_files)))
+matching_inputs = sort(Glob.glob(input_files, input_dir))
 if isempty(matching_inputs)
     error("No input files matched pattern $(input_files) under $(input_dir).")
 end
