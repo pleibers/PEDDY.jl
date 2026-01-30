@@ -103,16 +103,24 @@ using Dates
         end
     end
 
-    @testset "Nothing logger no-ops" begin
-        PEDDY.log_event!(nothing, :qc, :bounds; variable=:Ux)
-        PEDDY.record_stage_time!(nothing, :qc, 1)
-        PEDDY.write_processing_log(nothing, "does_not_matter.csv")
+    @testset "NoOpLogger no-ops" begin
+        noop = PEDDY.NoOpLogger()
+        PEDDY.log_event!(noop, :qc, :bounds; variable=:Ux)
+        PEDDY.record_stage_time!(noop, :qc, 1)
+        PEDDY.write_processing_log(noop, "does_not_matter.csv")
 
         t0 = DateTime(2020, 1, 1, 0, 0, 0)
         timestamps = [t0 + Second(i - 1) for i in 1:5]
-        PEDDY.log_index_runs!(nothing, :qc, :flagged, :Ux, timestamps, [1, 2, 3])
-        PEDDY.log_mask_runs!(nothing, :qc, :flagged, :Ux, timestamps, trues(5))
+        PEDDY.log_index_runs!(noop, :qc, :flagged, :Ux, timestamps, [1, 2, 3])
+        PEDDY.log_mask_runs!(noop, :qc, :flagged, :Ux, timestamps, trues(5))
 
         @test true
+    end
+
+    @testset "Type hierarchy" begin
+        @test PEDDY.ProcessingLogger <: PEDDY.AbstractProcessingLogger
+        @test PEDDY.NoOpLogger <: PEDDY.AbstractProcessingLogger
+        @test PEDDY.ProcessingLogger() isa PEDDY.AbstractProcessingLogger
+        @test PEDDY.NoOpLogger() isa PEDDY.AbstractProcessingLogger
     end
 end

@@ -75,7 +75,8 @@ export AbstractSensor, AbstractQC, AbstractDespiking, AbstractGapFilling, Abstra
 export write_data
 export check_diagnostics!, quality_control!, despike!, fill_gaps!, correct_gas_analyzer!,
     rotate!, decompose!, make_continuous!
-export ProcessingLogger, log_event!, record_stage_time!, write_processing_log,
-       log_index_runs!, log_mask_runs!
+export AbstractProcessingLogger, ProcessingLogger, NoOpLogger,
+       log_event!, record_stage_time!, write_processing_log,
+       log_index_runs!, log_mask_runs!, is_logging_enabled
 
 end

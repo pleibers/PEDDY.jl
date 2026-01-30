@@ -1,5 +1,65 @@
 using Dates
 
+# =============================================================================
+# Abstract Logger Interface
+# =============================================================================
+
+"""
+    AbstractProcessingLogger
+
+Abstract base type for processing loggers. Enables type-stable dispatch
+and zero-cost abstraction when logging is disabled.
+
+Subtypes:
+- `ProcessingLogger`: Active logger that records events
+- `NoOpLogger`: Singleton that compiles away to no-ops
+"""
+abstract type AbstractProcessingLogger end
+
+# =============================================================================
+# NoOpLogger - Zero-cost disabled logging
+# =============================================================================
+
+"""
+    NoOpLogger()
+
+Singleton logger that performs no operations. All logging calls compile
+to no-ops, providing zero runtime overhead when logging is disabled.
+
+# Example
+```julia
+logger = NoOpLogger()
+log_event!(logger, :qc, :bounds)  # Compiles to nothing
+```
+"""
+struct NoOpLogger <: AbstractProcessingLogger end
+
+@inline log_event!(::NoOpLogger, ::Symbol, ::Symbol; kwargs...) = nothing
+@inline record_stage_time!(::NoOpLogger, ::Symbol, ::Real) = nothing
+@inline write_processing_log(::NoOpLogger, ::AbstractString) = nothing
+@inline log_index_runs!(::NoOpLogger, ::Symbol, ::Symbol, ::Union{Symbol,Nothing},
+                        ::AbstractVector, ::AbstractVector{Int}; kwargs...) = nothing
+@inline log_mask_runs!(::NoOpLogger, ::Symbol, ::Symbol, ::Union{Symbol,Nothing},
+                       ::AbstractVector, ::AbstractVector{Bool}; kwargs...) = nothing
+@inline is_logging_enabled(::NoOpLogger) = false
+
+# =============================================================================
+# ProcessingLogEntry - Immutable log record
+# =============================================================================
+
+"""
+    ProcessingLogEntry
+
+Immutable record of a single processing event.
+
+# Fields
+- `stage::Symbol`: Pipeline stage (e.g., `:quality_control`, `:despiking`)
+- `category::Symbol`: Event category (e.g., `:bounds`, `:spike`)
+- `variable::Union{Symbol,Nothing}`: Affected variable, if applicable
+- `start_time::Union{DateTime,Nothing}`: Event start timestamp
+- `end_time::Union{DateTime,Nothing}`: Event end timestamp
+- `details::Dict{Symbol,Any}`: Additional metadata
+"""
 struct ProcessingLogEntry
     stage::Symbol
     category::Symbol
@@ -9,154 +69,239 @@ struct ProcessingLogEntry
     details::Dict{Symbol,Any}
 end
 
-mutable struct ProcessingLogger
+# =============================================================================
+# ProcessingLogger - Active event logger
+# =============================================================================
+
+"""
+    ProcessingLogger()
+
+Mutable logger that accumulates processing events and stage durations.
+Events are stored in memory and can be written to CSV via `write_processing_log`.
+
+# Example
+```julia
+logger = ProcessingLogger()
+log_event!(logger, :qc, :bounds; variable=:Ux, start_time=now())
+record_stage_time!(logger, :qc, 1.5)
+write_processing_log(logger, "processing.csv")
+```
+"""
+mutable struct ProcessingLogger <: AbstractProcessingLogger
     entries::Vector{ProcessingLogEntry}
     stage_durations::Dict{Symbol,Float64}
 end
 
 ProcessingLogger() = ProcessingLogger(ProcessingLogEntry[], Dict{Symbol,Float64}())
 
+@inline is_logging_enabled(::ProcessingLogger) = true
+
+# =============================================================================
+# Core logging functions
+# =============================================================================
+
+"""
+    log_event!(logger, stage, category; variable=nothing, start_time=nothing, end_time=nothing, kwargs...)
+
+Record a processing event. Duration is automatically computed if both timestamps are provided.
+"""
 function log_event!(logger::ProcessingLogger, stage::Symbol, category::Symbol;
                     variable::Union{Symbol,Nothing}=nothing,
                     start_time::Union{DateTime,Nothing}=nothing,
-                    end_time::Union{DateTime,Nothing}=start_time,
+                    end_time::Union{DateTime,Nothing}=nothing,
                     kwargs...)
-    details = Dict{Symbol,Any}(kwargs)
-    if start_time !== nothing && end_time === nothing
-        end_time = start_time
-    end
-    if start_time !== nothing && end_time !== nothing && !haskey(details, :duration_seconds)
-        duration = Dates.value(end_time - start_time) / 1000
-        details[:duration_seconds] = duration
-    end
-    push!(logger.entries, ProcessingLogEntry(stage, category, variable, start_time, end_time, details))
+    # Normalize end_time
+    t_end = _normalize_end_time(start_time, end_time)
+    
+    # Build details dict and compute duration
+    details = _build_details(start_time, t_end, kwargs)
+    
+    entry = ProcessingLogEntry(stage, category, variable, start_time, t_end, details)
+    push!(logger.entries, entry)
     return nothing
 end
-log_event!(::Nothing, ::Symbol, ::Symbol; kwargs...) = nothing
 
+"""
+    record_stage_time!(logger, stage, seconds)
+
+Accumulate runtime for a pipeline stage. Multiple calls for the same stage are summed.
+"""
 function record_stage_time!(logger::ProcessingLogger, stage::Symbol, seconds::Real)
-    logger === nothing && return nothing
-    logger.stage_durations[stage] = get(logger.stage_durations, stage, 0.0) + float(seconds)
+    prev = get(logger.stage_durations, stage, 0.0)
+    logger.stage_durations[stage] = prev + Float64(seconds)
     return nothing
 end
-record_stage_time!(::Nothing, ::Symbol, ::Real) = nothing
 
+"""
+    write_processing_log(logger, filepath)
+
+Write all logged events and stage durations to a CSV file.
+"""
 function write_processing_log(logger::ProcessingLogger, filepath::AbstractString)
     open(filepath, "w") do io
-        println(io, "stage,category,variable,start_timestamp,end_timestamp,duration_seconds,details")
-        for entry in logger.entries
-            println(io, _format_entry(entry))
-        end
-        for (stage, seconds) in sort(collect(logger.stage_durations); by=x->string(x[1]))
-            details = Dict{Symbol,Any}(:duration_seconds => seconds)
-            runtime_entry = ProcessingLogEntry(stage, :runtime, nothing, nothing, nothing, details)
-            println(io, _format_entry(runtime_entry))
-        end
+        _write_header(io)
+        _write_entries(io, logger.entries)
+        _write_stage_durations(io, logger.stage_durations)
     end
-end
-write_processing_log(::Nothing, ::AbstractString) = nothing
-
-function _format_entry(entry::ProcessingLogEntry)
-    stage = string(entry.stage)
-    category = string(entry.category)
-    variable = isnothing(entry.variable) ? "" : string(entry.variable)
-    start_ts = _format_time(entry.start_time)
-    end_ts = _format_time(entry.end_time)
-    details, duration_str = _split_details(entry.details)
-    return string(stage, ",", category, ",", variable, ",", start_ts, ",", end_ts, ",",
-                  duration_str, ",", details)
+    return nothing
 end
 
-function _format_time(t)
-    t === nothing && return ""
-    return Dates.format(t, dateformat"yyyy-mm-ddTHH:MM:SS.s")
-end
+# =============================================================================
+# Batch logging utilities
+# =============================================================================
 
-function _split_details(details::Dict{Symbol,Any})
-    isempty(details) && return "", ""
-    details_copy = copy(details)
-    duration_val = ""
-    if haskey(details_copy, :duration_seconds)
-        duration_val = string(details_copy[:duration_seconds])
-        delete!(details_copy, :duration_seconds)
-    end
-    detail_str = isempty(details_copy) ? "" : _details_string(details_copy)
-    return detail_str, duration_val
-end
+"""
+    log_index_runs!(logger, stage, category, variable, timestamps, indices; include_run_length=false, kwargs...)
 
-function _details_string(details::Dict{Symbol,Any})
-    pairs_str = Vector{String}(undef, length(details))
-    idx = 1
-    for key in sort(collect(keys(details)); by=string)
-        pairs_str[idx] = string(key, "=", details[key])
-        idx += 1
-    end
-    return join(pairs_str, ";")
-end
-
-log_index_runs!(::Nothing, ::Symbol, ::Symbol, ::Union{Symbol,Nothing}, ::AbstractVector, ::AbstractVector{Int}; kwargs...) = nothing
+Log contiguous runs of indices as separate events. Useful for logging flagged data points.
+"""
 function log_index_runs!(logger::ProcessingLogger, stage::Symbol, category::Symbol,
                          variable::Union{Symbol,Nothing}, timestamps::AbstractVector,
                          indices::AbstractVector{Int}; include_run_length::Bool=false,
                          kwargs...)
-    logger === nothing && return nothing
     isempty(indices) && return nothing
-    sorted = sort(collect(indices))
-    run_start = sorted[1]
-    prev_idx = run_start
-    for idx in Base.Iterators.drop(sorted, 1)
-        if idx == prev_idx + 1
-            prev_idx = idx
-            continue
+    
+    sorted = sort(indices)
+    n = length(sorted)
+    run_start_idx = 1
+    
+    for i in 2:n
+        if sorted[i] != sorted[i-1] + 1
+            _log_run!(logger, stage, category, variable, timestamps,
+                      sorted[run_start_idx], sorted[i-1], include_run_length; kwargs...)
+            run_start_idx = i
         end
-        if include_run_length
-            run_len = prev_idx - run_start + 1
-            log_event!(logger, stage, category; variable=variable,
-                       start_time=timestamps[run_start], end_time=timestamps[prev_idx],
-                       kwargs..., samples_in_run=run_len)
-        else
-            log_event!(logger, stage, category; variable=variable,
-                       start_time=timestamps[run_start], end_time=timestamps[prev_idx], kwargs...)
-        end
-        run_start = idx
-        prev_idx = idx
     end
-    if include_run_length
-        run_len = prev_idx - run_start + 1
+    
+    _log_run!(logger, stage, category, variable, timestamps,
+              sorted[run_start_idx], sorted[n], include_run_length; kwargs...)
+    
+    return nothing
+end
+
+"""
+    log_mask_runs!(logger, stage, category, variable, timestamps, mask; kwargs...)
+
+Log contiguous runs of `true` values in a boolean mask as separate events.
+"""
+function log_mask_runs!(logger::ProcessingLogger, stage::Symbol, category::Symbol,
+                        variable::Union{Symbol,Nothing}, timestamps::AbstractVector,
+                        mask::AbstractVector{Bool}; kwargs...)
+    n = min(length(timestamps), length(mask))
+    n == 0 && return nothing
+    
+    run_start = 0  # 0 = not in a run (type-stable)
+    
+    for i in 1:n
+        if mask[i]
+            run_start == 0 && (run_start = i)
+        elseif run_start != 0
+            log_event!(logger, stage, category; variable=variable,
+                       start_time=timestamps[run_start], end_time=timestamps[i-1], kwargs...)
+            run_start = 0
+        end
+    end
+    
+    if run_start != 0
         log_event!(logger, stage, category; variable=variable,
-                   start_time=timestamps[run_start], end_time=timestamps[prev_idx],
-                   kwargs..., samples_in_run=run_len)
+                   start_time=timestamps[run_start], end_time=timestamps[n], kwargs...)
+    end
+    
+    return nothing
+end
+
+# =============================================================================
+# Internal helpers - Event building
+# =============================================================================
+
+@inline function _normalize_end_time(start_time::Union{DateTime,Nothing},
+                                     end_time::Union{DateTime,Nothing})::Union{DateTime,Nothing}
+    end_time !== nothing && return end_time
+    return start_time  # Default to start_time if end_time not provided
+end
+
+function _build_details(start_time::Union{DateTime,Nothing},
+                        end_time::Union{DateTime,Nothing},
+                        kwargs)::Dict{Symbol,Any}
+    details = Dict{Symbol,Any}(kwargs)
+    
+    if start_time !== nothing && end_time !== nothing && !haskey(details, :duration_seconds)
+        details[:duration_seconds] = Dates.value(end_time - start_time) / 1000.0
+    end
+    
+    return details
+end
+
+@inline function _log_run!(logger::ProcessingLogger, stage::Symbol, category::Symbol,
+                           variable::Union{Symbol,Nothing}, timestamps::AbstractVector,
+                           first_data_idx::Int, last_data_idx::Int,
+                           include_run_length::Bool; kwargs...)
+    if include_run_length
+        run_len = last_data_idx - first_data_idx + 1
+        log_event!(logger, stage, category; variable=variable,
+                   start_time=timestamps[first_data_idx], end_time=timestamps[last_data_idx],
+                   samples_in_run=run_len, kwargs...)
     else
         log_event!(logger, stage, category; variable=variable,
-                   start_time=timestamps[run_start], end_time=timestamps[prev_idx], kwargs...)
+                   start_time=timestamps[first_data_idx], end_time=timestamps[last_data_idx],
+                   kwargs...)
     end
     return nothing
 end
 
-log_mask_runs!(::Nothing, ::Symbol, ::Symbol, ::Union{Symbol,Nothing}, ::AbstractVector, ::AbstractVector{Bool}; kwargs...) = nothing
-function log_mask_runs!(logger::ProcessingLogger, stage::Symbol, category::Symbol,
-                        variable::Union{Symbol,Nothing}, timestamps::AbstractVector,
-                        mask::AbstractVector{Bool}; kwargs...)
-    logger === nothing && return nothing
-    length(mask) == 0 && return nothing
-    last_idx = min(length(timestamps), length(mask))
-    last_idx == 0 && return nothing
-    start_idx = nothing
-    for idx in 1:last_idx
-        flag = mask[idx]
-        if flag
-            if start_idx === nothing
-                start_idx = idx
-            end
-        elseif start_idx !== nothing
-            log_event!(logger, stage, category; variable=variable,
-                       start_time=timestamps[start_idx], end_time=timestamps[idx-1], kwargs...)
-            start_idx = nothing
-        end
+# =============================================================================
+# Internal helpers - CSV formatting
+# =============================================================================
+
+const _CSV_HEADER = "stage,category,variable,start_timestamp,end_timestamp,duration_seconds,details"
+const _TIME_FORMAT = dateformat"yyyy-mm-ddTHH:MM:SS.s"
+
+@inline _write_header(io::IO) = println(io, _CSV_HEADER)
+
+function _write_entries(io::IO, entries::Vector{ProcessingLogEntry})
+    for entry in entries
+        _write_entry(io, entry)
     end
-    if start_idx !== nothing
-        log_event!(logger, stage, category; variable=variable,
-                   start_time=timestamps[start_idx], end_time=timestamps[last_idx], kwargs...)
+end
+
+function _write_stage_durations(io::IO, durations::Dict{Symbol,Float64})
+    for (stage, seconds) in sort!(collect(durations); by=first)
+        println(io, stage, ",runtime,,,,", seconds, ",duration_seconds=", seconds)
     end
-    return nothing
+end
+
+function _write_entry(io::IO, entry::ProcessingLogEntry)
+    print(io, entry.stage, ",")
+    print(io, entry.category, ",")
+    print(io, _format_variable(entry.variable), ",")
+    print(io, _format_time(entry.start_time), ",")
+    print(io, _format_time(entry.end_time), ",")
+    
+    duration_str, details_str = _format_details(entry.details)
+    print(io, duration_str, ",")
+    println(io, details_str)
+end
+
+@inline _format_variable(v::Nothing)::String = ""
+@inline _format_variable(v::Symbol)::String = string(v)
+
+@inline _format_time(t::Nothing)::String = ""
+@inline _format_time(t::DateTime)::String = Dates.format(t, _TIME_FORMAT)
+
+function _format_details(details::Dict{Symbol,Any})::Tuple{String,String}
+    isempty(details) && return "", ""
+    
+    duration_str = ""
+    if haskey(details, :duration_seconds)
+        duration_str = string(details[:duration_seconds])
+    end
+    
+    other_keys = filter(k -> k !== :duration_seconds, collect(keys(details)))
+    if isempty(other_keys)
+        return duration_str, ""
+    end
+    
+    sort!(other_keys; by=string)
+    parts = [string(k, "=", details[k]) for k in other_keys]
+    return duration_str, join(parts, ";")
 end
