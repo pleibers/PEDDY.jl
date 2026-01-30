@@ -138,8 +138,10 @@ function log_mask_runs!(logger::ProcessingLogger, stage::Symbol, category::Symbo
     logger === nothing && return nothing
     length(mask) == 0 && return nothing
     last_idx = min(length(timestamps), length(mask))
+    last_idx == 0 && return nothing
     start_idx = nothing
-    for (idx, flag) in enumerate(mask)
+    for idx in 1:last_idx
+        flag = mask[idx]
         if flag
             if start_idx === nothing
                 start_idx = idx
