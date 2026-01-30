@@ -155,14 +155,14 @@ function process!(pipeline::EddyPipeline, high_frequency_data::DimArray, low_fre
     return result
 end
 
-@inline function _run_stage(f::Function, logger::ProcessingLogger, stage::Symbol)
+@inline function _run_stage(f::F, logger::ProcessingLogger, stage::Symbol) where {F}
     local result
     seconds = @elapsed result = f()
     record_stage_time!(logger, stage, seconds)
     return result
 end
 
-@inline _run_stage(f::Function, ::NoOpLogger, ::Symbol) = f()
+@inline _run_stage(f::F, ::NoOpLogger, ::Symbol) where {F} = f()
 
 """
     check_data(high_frequency_data::DimArray, low_frequency_data::Union{Nothing,DimArray},
