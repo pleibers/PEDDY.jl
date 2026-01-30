@@ -94,6 +94,7 @@ function _details_string(details::Dict{Symbol,Any})
     return join(pairs_str, ";")
 end
 
+log_index_runs!(::Nothing, ::Symbol, ::Symbol, ::Union{Symbol,Nothing}, ::AbstractVector, ::AbstractVector{Int}; kwargs...) = nothing
 function log_index_runs!(logger::ProcessingLogger, stage::Symbol, category::Symbol,
                          variable::Union{Symbol,Nothing}, timestamps::AbstractVector,
                          indices::AbstractVector{Int}; include_run_length::Bool=false,
@@ -132,6 +133,7 @@ function log_index_runs!(logger::ProcessingLogger, stage::Symbol, category::Symb
     return nothing
 end
 
+log_mask_runs!(::Nothing, ::Symbol, ::Symbol, ::Union{Symbol,Nothing}, ::AbstractVector, ::AbstractVector{Bool}; kwargs...) = nothing
 function log_mask_runs!(logger::ProcessingLogger, stage::Symbol, category::Symbol,
                         variable::Union{Symbol,Nothing}, timestamps::AbstractVector,
                         mask::AbstractVector{Bool}; kwargs...)

@@ -9,6 +9,9 @@ using Test
         include("test_netcdf.jl")
         # include("test_output_splitter.jl")
     end
+    @testset "Logging" begin
+        include("test_logging.jl")
+    end
     @testset "QC" begin
         include("test_qc.jl")
     end
