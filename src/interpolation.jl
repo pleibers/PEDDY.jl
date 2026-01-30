@@ -76,13 +76,16 @@ Only gaps with ≤ max_gap_size consecutive missing values are filled.
 """
 function fill_gaps!(gap_filling::GeneralInterpolation, high_frequency_data,
                     low_frequency_data; kwargs...)
+    logger = get(kwargs, :logger, nothing)
+    timestamps = logger === nothing ? nothing : collect(dims(high_frequency_data, Ti))
     # Process each specified variable
     for var in gap_filling.variables
         if var in dims(high_frequency_data, Var)
             # Explicitly create a view to ensure in-place modification
             data_slice = @view high_frequency_data[Var=At(var)]
             interpolate_small_gaps!(data_slice, gap_filling.max_gap_size,
-                                    gap_filling.method)
+                                    gap_filling.method;
+                                    logger=logger, variable=var, timestamps=timestamps)
         else
             @debug "Variable $var not found in high frequency data"
         end
@@ -106,7 +109,8 @@ Larger gaps are left as missing values.
 - Modifies `data` in-place, filling small gaps with interpolated values
 """
 function interpolate_small_gaps!(data::AbstractArray, max_gap_size::Int,
-                                 method::InterpolationMethod)
+                                 method::InterpolationMethod; logger=nothing,
+                                 variable=nothing, timestamps=nothing)
     n = length(data)
     n == 0 && return data
 
@@ -122,6 +126,23 @@ function interpolate_small_gaps!(data::AbstractArray, max_gap_size::Int,
         gap_size = end_idx - start_idx + 1
         if gap_size <= max_gap_size
             interpolate_gap!(data, start_idx, end_idx, method)
+            if logger !== nothing && timestamps !== nothing && variable !== nothing
+                success = all(!isnan(data[i]) for i in start_idx:end_idx)
+                category = success ? :gap_filled : :gap_unfilled
+                log_event!(logger, :gap_filling, category;
+                           variable=variable,
+                           start_time=timestamps[start_idx],
+                           end_time=timestamps[end_idx],
+                           gap_samples=gap_size,
+                           method=string(typeof(method)))
+            end
+        elseif logger !== nothing && timestamps !== nothing && variable !== nothing
+            log_event!(logger, :gap_filling, :gap_skipped;
+                       variable=variable,
+                       start_time=timestamps[start_idx],
+                       end_time=timestamps[end_idx],
+                       gap_samples=gap_size,
+                       method=string(typeof(method)))
         end
     end
 

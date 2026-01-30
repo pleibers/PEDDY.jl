@@ -5,7 +5,7 @@ export check_data
 using ProgressMeter
 
 """
-    EddyPipeline(; sensor, quality_control, gas_analyzer, despiking, gap_filling,
+    EddyPipeline(; sensor, quality_control, gas_analyzer, despiking, make_continuous, gap_filling,
                   double_rotation, mrd, output)
 
 High-level orchestrator for the PEDDY.jl processing pipeline.
@@ -16,29 +16,32 @@ interface. Any step can be set to `nothing` to skip it. The typical order is:
 1. Quality control (`quality_control!`)
 2. Gas analyzer correction (`correct_gas_analyzer!`)
 3. Despiking (`despike!`)
-4. Gap filling (`fill_gaps!`)
-5. Double rotation (`rotate!`)
-6. MRD decomposition (`decompose!`)
-7. Output writing (`write_data`)
+4. Make continuous (`make_continuous!`) – insert missing timestamps with NaNs
+5. Gap filling / interpolation (`fill_gaps!`)
+6. Double rotation (`rotate!`)
+7. MRD decomposition (`decompose!`)
+8. Output writing (`write_data`)
 
 Fields
 - `sensor::AbstractSensor`: Sensor providing metadata (and coefficients)
 - `quality_control::OptionalPipelineStep`
 - `gas_analyzer::OptionalPipelineStep`
 - `despiking::OptionalPipelineStep`
+- `make_continuous::OptionalPipelineStep`
 - `gap_filling::OptionalPipelineStep`
 - `double_rotation::OptionalPipelineStep`
 - `mrd::OptionalPipelineStep`
 - `output::AbstractOutput`: Writer implementation
 """
 @kwdef struct EddyPipeline{SI<:AbstractSensor,QC<:OptionalPipelineStep,
-                           D<:OptionalPipelineStep,G<:OptionalPipelineStep,
+                           D<:OptionalPipelineStep,MC<:OptionalPipelineStep,G<:OptionalPipelineStep,
                            GA<:OptionalPipelineStep,DR<:OptionalPipelineStep,
                            MRD<:OptionalPipelineStep,O<:AbstractOutput}
     sensor::SI
     quality_control::QC = nothing
     gas_analyzer::GA = nothing
     despiking::D = nothing
+    make_continuous::MC = nothing
     gap_filling::G = nothing
     double_rotation::DR = nothing
     mrd::MRD = nothing
@@ -65,6 +68,11 @@ function fill_gaps!(gap_filling::Nothing, high_frequency_data, low_frequency_dat
                     kwargs...)
     return nothing
 end
+"""No-op make_continuous when `make_continuous` is `nothing`."""
+function make_continuous!(make_continuous::Nothing, high_frequency_data, low_frequency_data;
+                          kwargs...)
+    return high_frequency_data
+end
 """No-op double rotation when `double_rotation` is `nothing`."""
 function rotate!(double_rotation::Nothing, high_frequency_data, low_frequency_data;
                  kwargs...)
@@ -87,34 +95,73 @@ Arguments
 - `kwargs...`: Forwarded to step implementations
 """
 function process!(pipeline::EddyPipeline, high_frequency_data::DimArray, low_frequency_data::Union{Nothing, DimArray}; kwargs...)
-    prog = ProgressUnknown(;desc="PEDDY is cleaning your data...", spinner=true)
+    logger = get(kwargs, :logger, nothing)
+    run_stage = let logger=logger
+        function (stage_sym::Symbol, func::Function)
+            if logger === nothing
+                return func()
+            else
+                local result
+                seconds = @elapsed result = func()
+                record_stage_time!(logger, stage_sym, seconds)
+                return result
+            end
+        end
+    end
 
-    check_data(high_frequency_data, low_frequency_data, pipeline.sensor)
+    result = nothing
+    total_seconds = @elapsed begin
+        prog = ProgressUnknown(;desc="PEDDY is cleaning your data...", spinner=true)
 
-    next!(prog; showvalues=[("Status", "Performing Quality Control...")], spinner="🔬")
-    quality_control!(pipeline.quality_control, high_frequency_data, low_frequency_data,
-                     pipeline.sensor; kwargs...)
+        check_data(high_frequency_data, low_frequency_data, pipeline.sensor)
 
-    next!(prog; showvalues=[("Status", "Correcting Gas Analyzer...")], spinner="🧹")
-    correct_gas_analyzer!(pipeline.gas_analyzer, high_frequency_data, low_frequency_data,
-                          pipeline.sensor; kwargs...)
+        next!(prog; showvalues=[("Status", "Performing Quality Control...")], spinner="🔬")
+        run_stage(:quality_control, () -> begin
+            quality_control!(pipeline.quality_control, high_frequency_data, low_frequency_data,
+                             pipeline.sensor; kwargs...)
+        end)
 
-    next!(prog; showvalues=[("Status", "Removing Spikes...")], spinner="🦔")
-    despike!(pipeline.despiking, high_frequency_data, low_frequency_data; kwargs...)
+        next!(prog; showvalues=[("Status", "Correcting Gas Analyzer...")], spinner="🧹")
+        run_stage(:gas_analyzer, () -> begin
+            correct_gas_analyzer!(pipeline.gas_analyzer, high_frequency_data, low_frequency_data,
+                                  pipeline.sensor; kwargs...)
+        end)
 
-    next!(prog; showvalues=[("Status", "Filling Gaps...")], spinner="🧩")
-    fill_gaps!(pipeline.gap_filling, high_frequency_data, low_frequency_data; kwargs...)
+        next!(prog; showvalues=[("Status", "Removing Spikes...")], spinner="🦔")
+        run_stage(:despiking, () -> begin
+            despike!(pipeline.despiking, high_frequency_data, low_frequency_data; kwargs...)
+        end)
 
-    next!(prog; showvalues=[("Status", "Applying Double Rotation...")], spinner="🌀")
-    rotate!(pipeline.double_rotation, high_frequency_data, low_frequency_data; kwargs...) # should these two be in place?
+        next!(prog; showvalues=[("Status", "Making Time Continuous...")], spinner="⏱️")
+        high_frequency_data = run_stage(:make_continuous, () -> begin
+            make_continuous!(pipeline.make_continuous, high_frequency_data,
+                             low_frequency_data; kwargs...)
+        end)
 
-    next!(prog; showvalues=[("Status", "Decomposing MRD...")], spinner="〰️")
-    decompose!(pipeline.mrd, high_frequency_data, low_frequency_data; kwargs...) # should these two be in place?
+        next!(prog; showvalues=[("Status", "Filling Gaps...")], spinner="🧩")
+        run_stage(:gap_filling, () -> begin
+            fill_gaps!(pipeline.gap_filling, high_frequency_data, low_frequency_data; kwargs...)
+        end)
 
-    next!(prog; showvalues=[("Status", "Writing Data...")], spinner="💾")
-    write_data(pipeline.output, high_frequency_data, low_frequency_data; kwargs...)
+        next!(prog; showvalues=[("Status", "Applying Double Rotation...")], spinner="🌀")
+        run_stage(:double_rotation, () -> begin
+            rotate!(pipeline.double_rotation, high_frequency_data, low_frequency_data; kwargs...)
+        end)
 
-    return finish!(prog; desc="PEDDY is done cleaning your data!", spinner="🎉")
+        next!(prog; showvalues=[("Status", "Decomposing MRD...")], spinner="〰️")
+        run_stage(:mrd, () -> begin
+            decompose!(pipeline.mrd, high_frequency_data, low_frequency_data; kwargs...)
+        end)
+
+        next!(prog; showvalues=[("Status", "Writing Data...")], spinner="💾")
+        run_stage(:output, () -> begin
+            write_data(pipeline.output, high_frequency_data, low_frequency_data; kwargs...)
+        end)
+
+        result = finish!(prog; desc="PEDDY is done cleaning your data!", spinner="🎉")
+    end
+    record_stage_time!(logger, :pipeline_total, total_seconds)
+    return result
 end
 
 """

@@ -19,6 +19,9 @@ function despike! end
 abstract type AbstractGapFilling <: PipelineStep end
 function fill_gaps! end
 
+abstract type AbstractMakeContinuous <: PipelineStep end
+function make_continuous! end
+
 abstract type AbstractGasAnalyzer <: PipelineStep end
 function correct_gas_analyzer! end
 
@@ -52,6 +55,8 @@ end
 
 include("Sensors/sensors.jl")
 
+include("logging.jl")
+
 include("pipeline.jl")
 
 include("IO/IO.jl")
@@ -59,15 +64,18 @@ include("IO/IO.jl")
 include("QC/QC.jl")
 include("h2o_correction.jl")
 include("despiking.jl")
+include("make_continuous.jl")
 include("interpolation.jl")
 include("double_rotation.jl")
 include("MRD/mrd.jl")
 include("MRD/mrd_plotting.jl")
 
-export AbstractSensor, AbstractQC, AbstractDespiking, AbstractGapFilling,
+export AbstractSensor, AbstractQC, AbstractDespiking, AbstractGapFilling, AbstractMakeContinuous,
        AbstractGasAnalyzer, AbstractDoubleRotation, AbstractMRD, AbstractOutput
 export write_data
 export check_diagnostics!, quality_control!, despike!, fill_gaps!, correct_gas_analyzer!,
-       rotate!, decompose!
+    rotate!, decompose!, make_continuous!
+export ProcessingLogger, log_event!, record_stage_time!, write_processing_log,
+       log_index_runs!, log_mask_runs!
 
 end

@@ -72,14 +72,14 @@ end
 #   title = nothing
 #   xlabel = "Time"
 #   ylabel = "Scale (s)"
-@recipe function f(m::PEDDY.AbstractMRD; kind = :heatmap,
+@recipe function f(m::PEDDY.AbstractMRD; kind = :summary,
                                  metric = :mrd,
                                  logscale = true,
                                  clims = nothing,
                                  colormap = :viridis,
                                  title = nothing,
-                                 xlabel = "Time",
-                                 ylabel = "Scale (s)")
+                                 xlabel = nothing,
+                                 ylabel = nothing)
     payload = mrd_plot_payload(m)
     scales, times = payload.scales, payload.times
     mat = metric === :mrd ? payload.mrd : payload.mrd_std
@@ -89,16 +89,15 @@ end
     delete!(plotattributes, :metric)
     delete!(plotattributes, :logscale)
     delete!(plotattributes, :colormap)
-    delete!(plotattributes, :xlabel)
-    delete!(plotattributes, :ylabel)
+    # Keep xlabel/ylabel so users can pass custom/LaTeX labels
 
     @assert size(mat, 1) == length(scales)
     @assert size(mat, 2) == length(times)
 
     if kind == :heatmap
         seriestype := :heatmap
-        xguide --> xlabel
-        yguide --> ylabel
+        xguide --> (xlabel === nothing ? "Time" : xlabel)
+        yguide --> (ylabel === nothing ? "Scale (s)" : ylabel)
         legend --> false
         if title !== nothing
             title --> title
@@ -114,8 +113,9 @@ end
         times, scales, mat
     elseif kind == :summary
         seriestype := :line
-        xguide --> ylabel  # x is scale axis here
-        yguide --> (metric === :mrd ? "Contribution" : "Std (ddof=1)")
+        # x is scale axis here
+        xguide --> (xlabel === nothing ? "Scale (s)" : xlabel)
+        yguide --> (ylabel === nothing ? (metric === :mrd ? "Contribution (×1000)" : "Std (ddof=1)") : ylabel)
         legend --> :topright
         if title !== nothing
             title --> title
@@ -124,18 +124,26 @@ end
             xscale --> :log10
         end
         summ = _per_scale_summary(mat)
+        # Apply 1000x scaling for contribution values only (keep std as-is)
+        factor = (metric === :mrd) ? 1000 : 1
+        factored_median = summ.median .* factor
+        factored_q25 = summ.q25 .* factor
+        factored_q75 = summ.q75 .* factor
         # Main median line
         @series begin
             label := "median"
-            scales, summ.median
+            scales, factored_median
         end
         # Ribbon for IQR
         @series begin
-            label := "IQR"
-            fillrange := summ.q25
+            # Show only the shaded IQR region (no top outline)
+            label := "quartile range"
+            fillrange := factored_q25
             seriestype := :line
-            fillalpha := 0.2
-            scales, summ.q75
+            fillalpha := 0.25
+            linealpha := 0.0
+            linecolor := :transparent
+            scales, factored_q75
         end
     else
         error("Unknown kind=$(kind). Use :heatmap or :summary.")

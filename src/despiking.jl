@@ -45,6 +45,8 @@ based on Sigmund et al. (2022). This despiking method:
 # Parameters
 - `window_minutes`: Window size in minutes for rolling statistics (default: 5.0)
 - `variable_groups`: Vector of VariableGroup structs, each with its own threshold
+- `use_mad_floor`: When true, clamp MAD values to the per-variable floors in `mad_floor`
+- `mad_floor`: Dict of variable => minimum MAD (default 0.02 for Ux, Uy, Uz, Ts)
 
 # Examples
 ```julia
@@ -55,7 +57,7 @@ SimpleSigmundDespiking()
 SimpleSigmundDespiking(
     variable_groups=[
         VariableGroup("Wind Components", [:Ux, :Uy, :Uz], spike_threshold=6.0),
-        VariableGroup("Sonic Temperature", [:Ts], spike_threshold=7.0),
+        VariableGroup("Sonic Temperature", [:Ts], spike_threshold=6.0),
         VariableGroup("Gas Analyzer", [:CO2, :H2O], spike_threshold=6.0)
     ]
 )
@@ -73,14 +75,25 @@ SimpleSigmundDespiking(
 struct SimpleSigmundDespiking{N<:Real} <: AbstractDespiking
     window_minutes::N
     variable_groups::Vector{VariableGroup}
+    use_mad_floor::Bool
+    mad_floor::Dict{Symbol,Float64}
     
-    function SimpleSigmundDespiking(; window_minutes=5.0, number_type::Type{N}=Float64, variable_groups=VariableGroup{number_type}[]) where {N <: Real}
+    function SimpleSigmundDespiking(; window_minutes=5.0,
+                                    number_type::Type{N}=Float64,
+                                    variable_groups=VariableGroup{number_type}[],
+                                    use_mad_floor::Bool=false,
+                                    mad_floor::Dict{Symbol,Float64}=Dict(
+                                        :Ux => 0.02,
+                                        :Uy => 0.02,
+                                        :Uz => 0.02,
+                                        :Ts => 0.02,
+                                    )) where {N <: Real}
         # Default group if none provided
         if isempty(variable_groups)
             default_group = VariableGroup("Default Sonic", [:Ux, :Uy, :Uz, :Ts], spike_threshold=6.0)
             variable_groups = [default_group]
         end
-        new{number_type}(window_minutes, variable_groups)
+        new{number_type}(window_minutes, variable_groups, use_mad_floor, mad_floor)
     end
 end
 
@@ -100,6 +113,8 @@ The algorithm:
 function despike!(despiking::SimpleSigmundDespiking, high_frequency_data::DimArray, low_frequency_data; kwargs...)
     # Calculate window size from time dimension
     window_size_points = _calculate_window_size(high_frequency_data, despiking.window_minutes)
+    logger = get(kwargs, :logger, nothing)
+    timestamps = logger === nothing ? nothing : collect(dims(high_frequency_data, Ti))
     
     println("Processing spike detection with window size: $window_size_points points")
     println("Processing $(length(despiking.variable_groups)) variable groups")
@@ -129,7 +144,8 @@ function despike!(despiking::SimpleSigmundDespiking, high_frequency_data::DimArr
             end
             
             # Calculate normalized deviations using MAD filter
-            normalized_deviations = _calculate_mad_normalized_deviations(variable_data, window_size_points)
+            mad_floor_value = (despiking.use_mad_floor ? get(despiking.mad_floor, variable_name, 0.0) : 0.0)
+            normalized_deviations = _calculate_mad_normalized_deviations(variable_data, window_size_points; mad_floor=mad_floor_value)
             
             # Accumulate deviations within this group
             num_variables_in_group += 1
@@ -139,7 +155,7 @@ function despike!(despiking::SimpleSigmundDespiking, high_frequency_data::DimArr
         # Apply spike detection for this group if any variables were processed
         if num_variables_in_group > 0
             _apply_spike_threshold_and_remove_for_group!(var_group, high_frequency_data, 
-                                                        group_combined_deviations, group_idx)
+                                                        group_combined_deviations, group_idx, logger, timestamps)
         else
             @warn "No variables were processed in group $group_idx: '$(var_group.name)'"
         end
@@ -211,15 +227,15 @@ function calculate_pattern_deviation(absolute_deviations::AbstractVector)
     # Handle boundaries explicitly (faster than conditional in loop)
     # @inbounds begin
         # First element: only right neighbor
-        pattern_adjusted_deviations[1] = abs_deviations[1] - 0.25 * abs_deviations[2]
+        pattern_adjusted_deviations[1] = abs_deviations[1] - 0.5 * abs_deviations[2]
         
         # Last element: only left neighbor  
-        pattern_adjusted_deviations[n] = abs_deviations[n] - 0.25 * abs_deviations[n-1]
+        pattern_adjusted_deviations[n] = abs_deviations[n] - 0.5 * abs_deviations[n-1]
         
         # Interior points: vectorized computation
         for i in 2:(n-1)
             neighbor_average = 0.5 * (abs_deviations[i-1] + abs_deviations[i+1])
-            pattern_adjusted_deviations[i] = abs_deviations[i] - 0.5 * neighbor_average
+            pattern_adjusted_deviations[i] = abs_deviations[i] - neighbor_average
         end
     # end
     
@@ -266,7 +282,7 @@ end
 Calculate MAD-normalized deviations for a single variable using the Sigmund et al. algorithm.
 Optimized version that minimizes allocations and reuses intermediate arrays.
 """
-function _calculate_mad_normalized_deviations(variable_data::AbstractVector, window_size_points::Int)
+function _calculate_mad_normalized_deviations(variable_data::AbstractVector, window_size_points::Int; mad_floor::Real=0.0)
     n = length(variable_data)
     
     # Calculate rolling median
@@ -287,8 +303,16 @@ function _calculate_mad_normalized_deviations(variable_data::AbstractVector, win
     
     # Normalize by MAD with small epsilon to avoid division by zero (reuse pattern_adjusted_deviations)
     # @inbounds
+    floor_val = mad_floor > 0 ? mad_floor : 0.0
     @simd for i in 1:n
-        pattern_adjusted_deviations[i] = pattern_adjusted_deviations[i] / (mad_values[i] + 1e-10)
+        mad_val = mad_values[i]
+        if floor_val > 0
+            mad_val = max(mad_val, floor_val)
+        end
+        if mad_val == 0
+            mad_val = 1e-10
+        end
+        pattern_adjusted_deviations[i] = pattern_adjusted_deviations[i] / mad_val
     end
     
     return pattern_adjusted_deviations
@@ -302,19 +326,22 @@ Apply spike detection threshold for a specific variable group and remove detecte
 Uses the group's own spike threshold. Optimized version with pre-computed threshold and efficient indexing.
 """
 function _apply_spike_threshold_and_remove_for_group!(variable_group::VariableGroup, high_frequency_data::DimArray, 
-                                                     combined_normalized_deviations::Vector, group_index::Int)
+                                                     combined_normalized_deviations::Vector, group_index::Int,
+                                                     logger, timestamps)
     # Pre-compute normalized threshold (constant for this group)
     normalized_threshold = variable_group.spike_threshold / 0.6745
     
     # Find spike indices efficiently
     n_time_points = length(combined_normalized_deviations)
     spikes_detected_count = 0
+    spike_indices = logger === nothing ? nothing : Int[]
     
     # Count spikes and apply threshold in single pass
     # @inbounds
     for time_index in 1:n_time_points
         if abs(combined_normalized_deviations[time_index]) >= normalized_threshold
             spikes_detected_count += 1
+            logger === nothing || push!(spike_indices, time_index)
             
             # Set spikes to NaN for all variables in this group immediately
             for variable_name in variable_group.variables
@@ -329,6 +356,12 @@ function _apply_spike_threshold_and_remove_for_group!(variable_group::VariableGr
     # Report results
     if spikes_detected_count > 0
         println("    Group $group_index ('$(variable_group.name)'): Detected $spikes_detected_count spikes, setting to NaN")
+        if logger !== nothing && spike_indices !== nothing && !isempty(spike_indices)
+            log_index_runs!(logger, :despiking, :spike, nothing, timestamps, spike_indices;
+                            include_run_length=true, group=variable_group.name,
+                            threshold=variable_group.spike_threshold,
+                            variables=variable_group.variables)
+        end
     else
         println("    Group $group_index ('$(variable_group.name)'): No spikes detected")
     end
