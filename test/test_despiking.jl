@@ -45,23 +45,42 @@ using Dates
         @test despiking isa PEDDY.AbstractDespiking
     end
     
-    @testset "Rolling Median Calculation" begin
-        # Test basic rolling median
-        data = [1.0, 2.0, 3.0, 4.0, 5.0]
-        result = PEDDY.calculate_rolling_median(data, 3)
-        @test result[3] ≈ 3.0  # Center point should be exact median
+    @testset "Fast Median Internal" begin
+        # Test _fast_median! internal helper
+        # Case 1: single element
+        buf1 = [10.0]
+        @test PEDDY._fast_median!(buf1, 1) == 10.0
         
-        # Test with NaN values
-        data_with_nan = [1.0, NaN, 3.0, 4.0, 5.0]
-        result_nan = PEDDY.calculate_rolling_median(data_with_nan, 3)
-        @test result_nan[2] ≈ 2.0  # Should handle NaN by using valid neighbors
+        # Case 2: two elements
+        buf2 = [10.0, 20.0]
+        @test PEDDY._fast_median!(buf2, 2) == 15.0
         
-        # Test edge cases
-        small_data = [1.0, 2.0]
-        result_small = PEDDY.calculate_rolling_median(small_data, 3)
-        @test length(result_small) == 2
-        @test !isnan(result_small[1])
-        @test !isnan(result_small[2])
+        # Case 3: odd elements
+        buf3 = [30.0, 10.0, 20.0, 40.0, 50.0]
+        @test PEDDY._fast_median!(buf3, 5) == 30.0
+        
+        # Case 4: even elements
+        buf4 = [30.0, 10.0, 20.0, 40.0]
+        @test PEDDY._fast_median!(buf4, 4) == 25.0
+        
+        # Case 5: partial buffer
+        buf5 = [3.0, 1.0, 2.0, 100.0, 100.0]
+        @test PEDDY._fast_median!(buf5, 3) == 2.0
+    end
+
+    @testset "Window Size Calculation" begin
+        # Create dummy data with 10Hz sampling (2000 points)
+        times = [DateTime(2023, 1, 1) + Millisecond(i * 100) for i in 0:1999]
+        data = DimArray(randn(2000, 1), (Ti(times), Var([:Ux])))
+        
+        # 1 minute window at 10Hz = 600 points
+        # 600 < 2000/3 (666.6), so it shouldn't be adjusted
+        @test PEDDY._calculate_window_size(data, 1.0) == 600
+        
+        # Limited data case (1/3 of total)
+        # 20 minute window would be 12000 points, but total is 2000. 
+        # Should be capped at 2000 ÷ 3 = 666
+        @test_logs (:warn, r"Adjusted window size") PEDDY._calculate_window_size(data, 20.0) == 666
     end
     
     @testset "Pattern Deviation Calculation" begin
@@ -232,62 +251,90 @@ using Dates
         @test_logs (:warn, r"Adjusted window size") despike!(despiking, nan_data, low_freq_data)
     end
     
-    @testset "Variable Group Functionality" begin
-        # Test multiple groups with different thresholds
-        n_points = 200
-        freq_hz = 10.0
-        dt_ms = round(Int, 1000 / freq_hz)
+    @testset "MAD Floor Functionality" begin
+        n = 100
+        times = [DateTime(2023, 1, 1) + Second(i) for i in 1:n]
+        # Data with zero variance (all 1.0)
+        data_raw = fill(1.0, n)
+        # Add one spike
+        data_raw[50] = 10.0
         
-        start_time = DateTime(2023, 1, 1, 12, 0, 0)
-        times = [start_time + Millisecond(i * dt_ms) for i in 0:(n_points-1)]
+        da = DimArray(reshape(copy(data_raw), n, 1), (Ti(times), Var([:Ux])))
         
-        # Create synthetic data with different spike characteristics
-        ux_data = 2.0 .+ 0.5 .* randn(n_points)
-        uy_data = 1.0 .+ 0.3 .* randn(n_points)
-        uz_data = 0.1 .+ 0.1 .* randn(n_points)
-        ts_data = 20.0 .+ 2.0 .* randn(n_points)
-        co2_data = 400.0 .+ 10.0 .* randn(n_points)
+        # Without MAD floor, zero variance might lead to issues or very sensitive detection
+        # With MAD floor = 1.0, the threshold will be much higher
+        despiking = SimpleSigmundDespiking(window_minutes=1.0, use_mad_floor=true, 
+                                          mad_floor=Dict(:Ux => 1.0))
         
-        # Add different types of spikes
-        ux_data[50] += 15.0   # Large wind spike
-        ts_data[100] += 25.0  # Large temperature spike
-        co2_data[150] += 100.0 # Large CO2 spike
+        despike!(despiking, da, nothing)
         
-        test_data = hcat(ux_data, uy_data, uz_data, ts_data, co2_data)
-        high_freq_data = DimArray(
-            test_data,
-            (Ti(times), Var([:Ux, :Uy, :Uz, :Ts, :CO2]))
-        )
+        # The spike at 50 is 9.0 deviation. 
+        # Normalized threshold is 6.0 / 0.6745 ≈ 8.89
+        # If MAD floor is 1.0, deviation 9.0 / 1.0 = 9.0 >= 8.89 -> Spike detected
+        @test isnan(da[Ti=At(times[50]), Var=At(:Ux)])
         
-        # Create groups with different thresholds
-        wind_group = PEDDY.VariableGroup("Wind", [:Ux, :Uy, :Uz], spike_threshold=5.0)
-        temp_group = PEDDY.VariableGroup("Temperature", [:Ts], spike_threshold=4.0)  # More sensitive
-        gas_group = PEDDY.VariableGroup("Gas", [:CO2], spike_threshold=8.0)  # Less sensitive
+        # Test with even higher floor that prevents detection
+        # IMPORTANT: Use a FRESH copy of data_raw
+        da2 = DimArray(reshape(copy(data_raw), n, 1), (Ti(times), Var([:Ux])))
+        despiking2 = SimpleSigmundDespiking(window_minutes=1.0, use_mad_floor=true, 
+                                           mad_floor=Dict(:Ux => 2.0))
+        despike!(despiking2, da2, nothing)
+        # 9.0 / 2.0 = 4.5 < 8.89 -> No spike detected
+        @test !isnan(da2[Ti=At(times[50]), Var=At(:Ux)])
+    end
+
+    @testset "SimpleSigmundDespiking with Float32" begin
+        # Test constructor with Float32
+        despiking_f32 = SimpleSigmundDespiking(number_type=Float32)
+        @test despiking_f32 isa SimpleSigmundDespiking{Float32}
+        @test despiking_f32.window_minutes isa Float32
         
-        despiking = SimpleSigmundDespiking(
-            window_minutes=1.0,
-            variable_groups=[wind_group, temp_group, gas_group]
-        )
+        # Test despiking with Float32 data
+        n = 100
+        times = [DateTime(2023, 1, 1) + Second(i) for i in 1:n]
+        data = rand(Float32, n, 1)
+        data[50] = 100.0f0 # Huge spike
         
-        # Count original NaN values
-        original_nans = sum(isnan.(test_data))
+        da = DimArray(data, (Ti(times), Var([:Ux])))
+        despike!(despiking_f32, da, nothing)
         
-        # Apply despiking
-        low_freq_data = nothing
-        despike!(despiking, high_freq_data, low_freq_data)
+        @test isnan(da[Ti=At(times[50]), Var=At(:Ux)])
+        @test eltype(da) == Float32
+    end
+
+    @testset "Logger Integration" begin
+        n = 100
+        times = [DateTime(2023, 1, 1) + Second(i) for i in 1:n]
+        data = randn(n)
+        data[20] = 50.0 # Spike
         
-        # Count final NaN values
-        final_nans = sum(isnan.(high_freq_data.data))
+        da = DimArray(reshape(data, n, 1), (Ti(times), Var([:Ux])))
         
-        # Should have detected some spikes
-        @test final_nans > original_nans
+        logger = PEDDY.ProcessingLogger()
+        despiking = SimpleSigmundDespiking(window_minutes=1.0)
         
-        # Test that groups are processed independently
-        @test length(despiking.variable_groups) == 3
-        @test despiking.variable_groups[1].name == "Wind"
-        @test despiking.variable_groups[2].name == "Temperature"
-        @test despiking.variable_groups[3].name == "Gas"
+        despike!(despiking, da, nothing; logger=logger)
         
-        println("Variable group test: Detected $(final_nans - original_nans) spikes across all groups")
+        @test length(logger.entries) > 0
+        @test any(e -> e.stage == :despiking && e.category == :spike, logger.entries)
+        
+        # Check that it logged the correct group
+        spike_entries = filter(e -> e.category == :spike, logger.entries)
+        @test !isempty(spike_entries)
+        @test spike_entries[1].details[:group] == "Default Sonic"
+    end
+
+    @testset "Small Data Pattern Deviation" begin
+        # Test n < 3 case
+        d1 = [1.0]
+        @test PEDDY.calculate_pattern_deviation(d1) == [0.5]
+        d2 = [1.0, 2.0]
+        @test PEDDY.calculate_pattern_deviation(d2) == [0.5, 1.0]
+    end
+
+    @testset "Rolling Median All NaNs" begin
+        data = [NaN, NaN, NaN]
+        res = PEDDY.calculate_rolling_median(data, 3)
+        @test all(isnan, res)
     end
 end

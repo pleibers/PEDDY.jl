@@ -74,13 +74,13 @@ SimpleSigmundDespiking(
 """
 struct SimpleSigmundDespiking{N<:Real} <: AbstractDespiking
     window_minutes::N
-    variable_groups::Vector{VariableGroup}
+    variable_groups::Vector{<:VariableGroup}
     use_mad_floor::Bool
     mad_floor::Dict{Symbol,Float64}
     
     function SimpleSigmundDespiking(; window_minutes=5.0,
                                     number_type::Type{N}=Float64,
-                                    variable_groups=VariableGroup{number_type}[],
+                                    variable_groups=VariableGroup[],
                                     use_mad_floor::Bool=false,
                                     mad_floor::Dict{Symbol,Float64}=Dict(
                                         :Ux => 0.02,
@@ -90,12 +90,14 @@ struct SimpleSigmundDespiking{N<:Real} <: AbstractDespiking
                                     )) where {N <: Real}
         # Default group if none provided
         if isempty(variable_groups)
-            default_group = VariableGroup("Default Sonic", [:Ux, :Uy, :Uz, :Ts], spike_threshold=6.0)
+            default_group = VariableGroup("Default Sonic", [:Ux, :Uy, :Uz, :Ts], spike_threshold=N(6.0))
             variable_groups = [default_group]
         end
-        new{number_type}(window_minutes, variable_groups, use_mad_floor, mad_floor)
+        new{N}(N(window_minutes), variable_groups, use_mad_floor, mad_floor)
     end
 end
+
+Base.eltype(::SimpleSigmundDespiking{N}) where N = N
 
 """
     despike!(despiking::SimpleSigmundDespiking, high_frequency_data::DimArray, low_frequency_data; kwargs...)
@@ -166,7 +168,7 @@ end
     calculate_rolling_median(data::AbstractVector, window_size::Int) -> Vector
 
 Calculate rolling median with center alignment, handling NaN values.
-Optimized version that pre-allocates buffers and minimizes allocations.
+Optimized version using partialsort! for O(n) median computation instead of full sort.
 """
 function calculate_rolling_median(data::AbstractVector, window_size::Int)
     n = length(data)
@@ -174,13 +176,10 @@ function calculate_rolling_median(data::AbstractVector, window_size::Int)
     half_window = window_size ÷ 2
     
     # Pre-allocate buffer for valid data to avoid repeated allocations
-    # The actual window size can be larger than window_size when window_size is even
-    # because we use ÷ for half_window, so the total range can be 2*half_window + 1
     max_possible_window = min(2 * half_window + 1, n)
     valid_buffer = Vector{eltype(data)}(undef, max_possible_window)
     
-    # @inbounds
-    for i in 1:n
+    @inbounds for i in 1:n
         # Define window bounds with center alignment
         start_idx = max(1, i - half_window)
         end_idx = min(n, i + half_window)
@@ -188,22 +187,48 @@ function calculate_rolling_median(data::AbstractVector, window_size::Int)
         # Extract valid (non-NaN) data directly into pre-allocated buffer
         valid_count = 0
         for j in start_idx:end_idx
-            if !isnan(data[j])
+            val = data[j]
+            if !isnan(val)
                 valid_count += 1
-                valid_buffer[valid_count] = data[j]
+                valid_buffer[valid_count] = val
             end
         end
         
         if valid_count > 0
-            # Use view to avoid allocation and sort only the valid portion
-            valid_view = @view valid_buffer[1:valid_count]
-            result[i] = median(valid_view)
+            # Use partialsort! for O(n) median instead of O(n log n) full sort
+            result[i] = _fast_median!(valid_buffer, valid_count)
         else
             result[i] = NaN
         end
     end
     
     return result
+end
+
+"""
+    _fast_median!(buffer::Vector, count::Int) -> eltype(buffer)
+
+Compute median of first `count` elements in buffer using partialsort!.
+This is O(n) on average vs O(n log n) for full sort.
+Modifies buffer in-place.
+"""
+@inline function _fast_median!(buffer::Vector{T}, count::Int) where T
+    if count == 1
+        return @inbounds buffer[1]
+    elseif count == 2
+        return @inbounds (buffer[1] + buffer[2]) / 2
+    end
+    
+    mid = (count + 1) ÷ 2
+    if isodd(count)
+        # For odd count, partialsort! to find the middle element
+        return @inbounds partialsort!(@view(buffer[1:count]), mid)
+    else
+        # For even count, need the two middle elements
+        # partialsort! with a range is efficient for this
+        partialsort!(@view(buffer[1:count]), mid:mid+1)
+        return @inbounds (buffer[mid] + buffer[mid+1]) / 2
+    end
 end
 
 """
@@ -220,24 +245,23 @@ function calculate_pattern_deviation(absolute_deviations::AbstractVector)
         return abs.(absolute_deviations) .- 0.5 .* abs.(absolute_deviations)
     end
     
-    # Pre-compute absolute values once
-    abs_deviations = abs.(absolute_deviations)
     pattern_adjusted_deviations = similar(absolute_deviations)
     
-    # Handle boundaries explicitly (faster than conditional in loop)
-    # @inbounds begin
+    # Handle boundaries and interior with @inbounds for performance
+    @inbounds begin
         # First element: only right neighbor
-        pattern_adjusted_deviations[1] = abs_deviations[1] - 0.5 * abs_deviations[2]
+        pattern_adjusted_deviations[1] = abs(absolute_deviations[1]) - 0.5 * abs(absolute_deviations[2])
         
         # Last element: only left neighbor  
-        pattern_adjusted_deviations[n] = abs_deviations[n] - 0.5 * abs_deviations[n-1]
+        pattern_adjusted_deviations[n] = abs(absolute_deviations[n]) - 0.5 * abs(absolute_deviations[n-1])
         
-        # Interior points: vectorized computation
-        for i in 2:(n-1)
-            neighbor_average = 0.5 * (abs_deviations[i-1] + abs_deviations[i+1])
-            pattern_adjusted_deviations[i] = abs_deviations[i] - neighbor_average
+        # Interior points: compute abs inline to avoid allocation
+        @simd for i in 2:(n-1)
+            abs_i = abs(absolute_deviations[i])
+            neighbor_average = 0.5 * (abs(absolute_deviations[i-1]) + abs(absolute_deviations[i+1]))
+            pattern_adjusted_deviations[i] = abs_i - neighbor_average
         end
-    # end
+    end
     
     return pattern_adjusted_deviations
 end
@@ -290,8 +314,7 @@ function _calculate_mad_normalized_deviations(variable_data::AbstractVector, win
     
     # Calculate absolute deviations from rolling median (reuse this array)
     absolute_deviations = similar(variable_data)
-    # @inbounds
-    @simd for i in 1:n
+    @inbounds @simd for i in 1:n
         absolute_deviations[i] = abs(variable_data[i] - rolling_median_values[i])
     end
     
@@ -302,9 +325,8 @@ function _calculate_mad_normalized_deviations(variable_data::AbstractVector, win
     pattern_adjusted_deviations = calculate_pattern_deviation(absolute_deviations)
     
     # Normalize by MAD with small epsilon to avoid division by zero (reuse pattern_adjusted_deviations)
-    # @inbounds
     floor_val = mad_floor > 0 ? mad_floor : 0.0
-    @simd for i in 1:n
+    @inbounds @simd for i in 1:n
         mad_val = mad_values[i]
         if floor_val > 0
             mad_val = max(mad_val, floor_val)
@@ -336,19 +358,19 @@ function _apply_spike_threshold_and_remove_for_group!(variable_group::VariableGr
     spikes_detected_count = 0
     spike_indices = logger === nothing ? nothing : Int[]
     
+    # Pre-cache variable views to avoid repeated dimension lookups in the hot loop
+    var_dims = dims(high_frequency_data, Var)
+    variable_views = [@view high_frequency_data[Var=At(vname)] for vname in variable_group.variables if vname ∈ var_dims]
+    
     # Count spikes and apply threshold in single pass
-    # @inbounds
-    for time_index in 1:n_time_points
+    @inbounds for time_index in 1:n_time_points
         if abs(combined_normalized_deviations[time_index]) >= normalized_threshold
             spikes_detected_count += 1
             logger === nothing || push!(spike_indices, time_index)
             
             # Set spikes to NaN for all variables in this group immediately
-            for variable_name in variable_group.variables
-                if variable_name ∈ dims(high_frequency_data, Var)
-                    variable_time_series = @view high_frequency_data[Var=At(variable_name)]
-                    variable_time_series[time_index] = NaN
-                end
+            for var_view in variable_views
+                var_view[time_index] = NaN
             end
         end
     end
