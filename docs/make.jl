@@ -25,4 +25,15 @@ makedocs(;
          repo="",
          remotes=nothing,
          checkdocs=:none,
-         pages=["Home" => "index.md", "Best Practice" => "best_practice.md"],)
+         pages=[
+             "Home" => "index.md",
+             "Overview" => "overview.md",
+             "Quick Reference" => "quick_reference.md",
+             "Tutorial" => "index.md",
+             "API Reference" => "api.md",
+             "Data Format & Architecture" => "data_format.md",
+             "Sensor Configuration" => "sensors.md",
+             "Extending PEDDY.jl" => "extending.md",
+             "Troubleshooting & FAQ" => "troubleshooting.md",
+             "Best Practice" => "best_practice.md",
+         ],)

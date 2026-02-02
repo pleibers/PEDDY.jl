@@ -4,6 +4,27 @@ PEDDY is a Julia package for eddy-covariance data processing. This page is a han
 
 If references in docstrings do not render, they are still kept for completeness.
 
+## Table of Contents
+
+- [Quick start (no prior Julia knowledge required)](#quick-start-no-prior-julia-knowledge-required)
+  - [Development environment](#development-environment)
+  - [Usage environment](#usage-environment)
+- [Quick example (synthetic data)](#quick-example-synthetic-data)
+- [Data model in one minute](#data-model-in-one-minute)
+- [Read data](#read-data)
+- [Configure processing steps](#configure-processing-steps)
+  - [1) Quality control](#1-quality-control)
+  - [2) Gas analyzer H2O calibration](#2-gas-analyzer-h2o-calibration)
+  - [3) Despiking (Sigmund et al. 2022, modified MAD)](#3-despiking-sigmund-et-al-2022-modified-mad)
+  - [4) Gap filling (small gaps only)](#4-gap-filling-small-gaps-only)
+  - [5) Wind double rotation](#5-wind-double-rotation)
+  - [6) Multi-Resolution Decomposition (MRD)](#6-multi-resolution-decomposition-mrd)
+  - [7) Output (choose one)](#7-output-choose-one)
+- [Build and run a pipeline](#build-and-run-a-pipeline)
+- [Run steps manually (optional)](#run-steps-manually-optional)
+- [Tips and troubleshooting](#tips-and-troubleshooting)
+- [API reference](#api-reference)
+
 ---
 
 ## Quick start (no prior Julia knowledge required)
@@ -65,22 +86,24 @@ using Dates
 # 1) Create small HF dataset (5 seconds at 10 Hz)
 t0 = DateTime(2024, 1, 1, 0, 0, 0)
 times = t0:Millisecond(100):t0 + Millisecond(100)*(50-1)  # 50 samples
-vars = [:Ux, :Uy, :Uz, :Ts]
+vars = [:Ux, :Uy, :Uz, :Ts, :diag_sonic]
 
 # Simple signals with a couple of NaNs (to demonstrate gap filling)
 Ux = sin.(range(0, 1, length=50))
 Uy = cos.(range(0, 1, length=50))
 Uz = 0.1 .* randn(50)
 Ts = 20 .+ 0.01 .* randn(50)
+diag_sonic = zeros(50)
 Ux[10] = NaN; Uy[30] = NaN
 
-data = hcat(Ux, Uy, Uz, Ts)
+data = hcat(Ux, Uy, Uz, Ts, diag_sonic)
 hf = DimArray(data, (Ti(collect(times)), Var(vars)))
 
 # No low-frequency data needed for this minimal example
 lf = nothing
 
 # 2) Configure steps: QC, despiking, small-gap interpolation, in-memory output
+sensor = CSAT3()
 qc = PhysicsBoundsCheck()
 wind = VariableGroup("Wind", [:Ux, :Uy, :Uz], spike_threshold=6.0)
 temp = VariableGroup("Sonic T", [:Ts], spike_threshold=6.0)
@@ -90,7 +113,7 @@ out = MemoryOutput()
 
 # 3) Build pipeline (leave other steps as nothing)
 pipe = EddyPipeline(
-    sensor=nothing,
+    sensor=sensor,
     quality_control=qc,
     gas_analyzer=nothing,
     despiking=desp,
@@ -103,8 +126,9 @@ pipe = EddyPipeline(
 # 4) Run
 process!(pipe, hf, lf)
 
-# 5) Inspect a variable after processing
-Ux_processed = hf[Var=At(:Ux)]
+# 5) Inspect results
+hf_processed, lf_processed = PEDDY.get_results(out)
+Ux_processed = hf_processed[Var=At(:Ux)]
 println("First 5 Ux values: ", Ux_processed[1:5])
 ```
 
@@ -168,15 +192,19 @@ qc = PhysicsBoundsCheck()          # checks physical limits; marks invalid as Na
 
 ```julia
 gas = H2OCalibration()             # pulls calibration coefficients from the sensor
-# Requires a sensor that carries calibration coefficients (e.g. LICOR, IRGASON)
+# Requires a sensor that carries calibration coefficients (LICOR)
 ```
 
 Example sensors with coefficients (see `src/Sensors/`):
 
 ```julia
-# LICOR/IRGASON examples (site-specific values)
-sensor = LICOR(calibration_coefficients=Dict(
-    "A"=>4.82004e3, "B"=>3.79290e6, "C"=>-1.15477e8, "H20_Span"=>0.9885
+# LICOR example (site-specific values)
+sensor = LICOR(calibration_coefficients=H2OCalibrationCoefficients(
+    A=4.82004e3,
+    B=3.79290e6,
+    C=-1.15477e8,
+    H2O_Zero=0.7087,
+    H20_Span=0.9885,
 ))
 ```
 
