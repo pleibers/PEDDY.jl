@@ -1,7 +1,7 @@
 # PEDDY.jl
 
 <p align="center">
-  <img src="docs/assets/logo_scaled.png" alt="PEDDY.jl Logo" width="200"/>
+  <img src="docs/assets/logo.png" alt="PEDDY.jl Logo" width="200"/>
 </p>
 
 [![CI](https://github.com/pleibers/PEDDY.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/pleibers/PEDDY.jl/actions/workflows/ci.yml)
@@ -29,6 +29,10 @@ Quick build hint:
 # (the "+1.11" is not part of Julia syntax, it is a version selector used by juliaup).
 julia +1.11 --project=docs -e 'using Pkg; Pkg.instantiate(); include("docs/make.jl")'
 ```
+
+## Documentation
+
+Full Documentation and practical guides are available at [https://pleibers.github.io/PEDDY.jl/](https://pleibers.github.io/PEDDY.jl/).
 
 ## Roadmap
 
