@@ -2,7 +2,7 @@ export MakeContinuous
 export make_continuous!
 
 """
-    MakeContinuous(; step_size_ms=50, max_gap_minutes=5)
+    MakeContinuous(; step_size_ms=50, max_gap_minutes=5.0)
 
 Pipeline step that ensures a continuous high-frequency time axis by inserting
 missing timestamps (up to `max_gap_minutes`) at a fixed resolution given by
@@ -10,110 +10,172 @@ missing timestamps (up to `max_gap_minutes`) at a fixed resolution given by
 
 Gaps larger than `max_gap_minutes` are left untouched (a warning is emitted).
 
-Fields
-- `step_size_ms::Int`: Expected sampling interval in milliseconds (default 50ms => 20 Hz)
-- `max_gap_minutes::Real`: Maximum gap length to fill (default 5 minutes)
+# Fields
+- `step_size_ms::Int`: Expected sampling interval in milliseconds (default 50 ms ⇒ 20 Hz).
+- `max_gap_minutes::Real`: Maximum gap length to fill (default 5 minutes).
 """
 struct MakeContinuous{T<:Real} <: AbstractMakeContinuous
     step_size_ms::Int
     max_gap_minutes::T
+
     function MakeContinuous(; step_size_ms::Int=50, max_gap_minutes::T=5.0) where {T<:Real}
-        step_size_ms <= 0 && throw(ArgumentError("step_size_ms must be positive"))
-        max_gap_minutes <= 0 && throw(ArgumentError("max_gap_minutes must be positive"))
-        new{T}(step_size_ms, max_gap_minutes)
+        step_size_ms > 0 || throw(ArgumentError("step_size_ms must be positive"))
+        max_gap_minutes > 0 || throw(ArgumentError("max_gap_minutes must be positive"))
+        return new{T}(step_size_ms, max_gap_minutes)
     end
 end
 
 """
     make_continuous!(mc::MakeContinuous, high_frequency_data::DimArray, low_frequency_data; kwargs...)
 
-Insert missing timestamps into `high_frequency_data` in-place (returns the
-mutated DimArray). Rows added contain `NaN` for all non-time variables.
+Insert missing timestamps into `high_frequency_data` (returns a new DimArray).
+Rows added contain `NaN` for all non-time variables.
 
-Notes
+# Notes
 - Assumes the DimArray has `Ti` and `Var` dimensions.
 - Keeps original ordering; ensures resulting time axis is strictly increasing.
 """
-function make_continuous!(mc::MakeContinuous, high_frequency_data::DimArray, low_frequency_data; kwargs...)
-    # Extract time vector
+function make_continuous!(
+    mc::MakeContinuous,
+    high_frequency_data::DimArray,
+    low_frequency_data;
+    kwargs...
+)
     ti_dim = dims(high_frequency_data, Ti)
-    times = collect(ti_dim)
-    n = length(times)
-    if n <= 1
-        return high_frequency_data
-    end
+    n = length(ti_dim)
+    n <= 1 && return high_frequency_data
 
-    step_ns = Millisecond(mc.step_size_ms)
-    max_gap = Minute(mc.max_gap_minutes)
+    step_ms_val = mc.step_size_ms
+    max_gap_ms_val = round(Int, mc.max_gap_minutes * 60_000)
     logger = get(kwargs, :logger, nothing)
 
-    # Accumulate row indices needing insertion specs
-    gaps_to_fill = Vector{Tuple{Int,Vector{DateTime}}}()
+    # --- Pass 1: Count total insertions (no allocations) ---
+    total_insertions = _count_total_insertions(ti_dim, step_ms_val, max_gap_ms_val, n)
+    total_insertions == 0 && return high_frequency_data
 
-    for i in 2:n
-        t_prev = times[i-1]
-        t_cur = times[i]
-        D = t_cur - t_prev
-        if D > step_ns
-            inserted_points = 0
-            if D <= max_gap
-                # Generate intermediate timestamps (exclusive of t_prev, inclusive exclusive of t_cur)
-                missing = DateTime[]
-                t_next = t_prev + step_ns
-                while t_next < t_cur
-                    push!(missing, t_next)
-                    t_next += step_ns
-                end
-                if !isempty(missing)
-                    push!(gaps_to_fill, (i-1, missing))  # insert after index i-1
-                    inserted_points = length(missing)
-                end
-            else
-                @warn "Skipping large gap > max_gap_minutes" gap_minutes=Dates.value(D)/60000.0 max_gap_minutes=mc.max_gap_minutes start=t_prev stop=t_cur
-            end
-            if logger !== nothing
-                log_event!(logger, :make_continuous, :time_gap;
-                           start_time=t_prev, end_time=t_cur,
-                           filled=(D <= max_gap),
-                           inserted_points=inserted_points,
-                           gap_seconds=Dates.value(D)/1000)
-            end
-        end
-    end
+    # --- Pass 2: Build expanded arrays and fill ---
+    old_data = parent(high_frequency_data)
+    T_elem = eltype(old_data)
+    T_time = eltype(ti_dim)
+    n_vars = size(old_data, 2)
+    new_n = n + total_insertions
 
-    if isempty(gaps_to_fill)
-        return high_frequency_data
-    end
+    new_matrix = Matrix{T_elem}(undef, new_n, n_vars)
+    new_times = Vector{T_time}(undef, new_n)
 
-    # Build new time axis and expanded data matrix
-    total_new_rows = sum(length(g[2]) for g in gaps_to_fill)
+    _fill_expanded_arrays!(
+        new_matrix, new_times, old_data, ti_dim,
+        step_ms_val, max_gap_ms_val, n, n_vars, logger, mc.max_gap_minutes
+    )
+
     var_names = val(dims(high_frequency_data, :Var))
-    old_data = parent(high_frequency_data)  # matrix (time, vars)
-    Ttype = eltype(old_data)
-    new_length = n + total_new_rows
-    new_matrix = Matrix{Ttype}(undef, new_length, size(old_data,2))
-    new_timevec = Vector{eltype(times)}(undef, new_length)
-
-    gap_lookup = Dict{Int,Vector{DateTime}}(gaps_to_fill)
-    write_row = 1
-    for read_row in 1:n
-        # copy original row
-        new_matrix[write_row, :] .= old_data[read_row, :]
-        new_timevec[write_row] = times[read_row]
-        write_row += 1
-        # insert gap rows if any after this index
-        if haskey(gap_lookup, read_row)
-            for t_ins in gap_lookup[read_row]
-                new_matrix[write_row, :] .= NaN
-                new_timevec[write_row] = t_ins
-                write_row += 1
-            end
-        end
-    end
-
-    # Re-wrap into DimArray (same variable order)
-    new_da = DimArray(new_matrix, (Ti(new_timevec), Var(var_names)))
-    return new_da
+    return DimArray(new_matrix, (Ti(new_times), Var(var_names)))
 end
 
-## NOTE: No-op method for `Nothing` lives in `pipeline.jl` to mirror other steps.
+"""
+    _count_insertions(gap_ms, step_ms) -> Int
+
+Count how many timestamps to insert for a gap of `gap_ms` milliseconds.
+"""
+@inline function _count_insertions(gap_ms::Int, step_ms::Int)
+    return max(0, div(gap_ms, step_ms) - 1)
+end
+
+"""
+    _count_total_insertions(ti_dim, step_ms, max_gap_ms, n) -> Int
+
+Count total insertions needed across all fillable gaps (no allocations).
+"""
+function _count_total_insertions(ti_dim, step_ms::Int, max_gap_ms::Int, n::Int)
+    total = 0
+    @inbounds for i in 2:n
+        gap_ms = Dates.value(ti_dim[i] - ti_dim[i - 1])
+        if gap_ms > step_ms && gap_ms <= max_gap_ms
+            total += _count_insertions(gap_ms, step_ms)
+        end
+    end
+    return total
+end
+
+"""
+    _log_gap!(logger, t_prev, t_curr, gap_ms, filled, inserted_points, max_gap_minutes)
+
+Log a gap event if logger is provided.
+"""
+@inline function _log_gap!(logger, t_prev, t_curr, gap_ms::Int, filled::Bool, inserted_points::Int, max_gap_minutes)
+    logger === nothing && return nothing
+    log_event!(
+        logger, :make_continuous, :time_gap;
+        start_time=t_prev,
+        end_time=t_curr,
+        filled=filled,
+        inserted_points=inserted_points,
+        gap_seconds=gap_ms / 1000
+    )
+    return nothing
+end
+
+"""
+    _fill_expanded_arrays!(new_matrix, new_times, old_data, ti_dim, step_ms, max_gap_ms, n, n_vars, logger, max_gap_minutes)
+
+Fill the expanded matrix and time vector by copying original rows and inserting NaN rows.
+Recomputes gaps on-the-fly to avoid storing gap specifications.
+"""
+function _fill_expanded_arrays!(
+    new_matrix::Matrix{T},
+    new_times::Vector{D},
+    old_data::AbstractMatrix{T},
+    ti_dim,
+    step_ms::Int,
+    max_gap_ms::Int,
+    n::Int,
+    n_vars::Int,
+    logger,
+    max_gap_minutes
+) where {T<:Real, D<:DateTime}
+    step_period = Millisecond(step_ms)
+    nan_val = T(NaN)
+    write_row = 1
+
+    # Copy first row
+    @inbounds begin
+        for col in 1:n_vars
+            new_matrix[write_row, col] = old_data[1, col]
+        end
+        new_times[write_row] = ti_dim[1]
+        write_row += 1
+    end
+
+    @inbounds for read_row in 2:n
+        t_prev = ti_dim[read_row - 1]
+        t_curr = ti_dim[read_row]
+        gap_ms_val = Dates.value(t_curr - t_prev)
+
+        # Check for gap that needs filling
+        if gap_ms_val > step_ms
+            if gap_ms_val <= max_gap_ms
+                num_insert = _count_insertions(gap_ms_val, step_ms)
+                # Insert NaN rows for the gap
+                for k in 1:num_insert
+                    for col in 1:n_vars
+                        new_matrix[write_row, col] = nan_val
+                    end
+                    new_times[write_row] = t_prev + k * step_period
+                    write_row += 1
+                end
+                _log_gap!(logger, t_prev, t_curr, gap_ms_val, true, num_insert, max_gap_minutes)
+            else
+                @warn "Skipping large gap > max_gap_minutes" gap_minutes = gap_ms_val / 60_000.0 max_gap_minutes = max_gap_minutes start = t_prev stop = t_curr
+                _log_gap!(logger, t_prev, t_curr, gap_ms_val, false, 0, max_gap_minutes)
+            end
+        end
+
+        # Copy current row
+        for col in 1:n_vars
+            new_matrix[write_row, col] = old_data[read_row, col]
+        end
+        new_times[write_row] = t_curr
+        write_row += 1
+    end
+    return nothing
+end
