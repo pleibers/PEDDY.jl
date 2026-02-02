@@ -5,23 +5,54 @@ on:
     branches: [main, master]
   pull_request:
     branches: [main, master]
+  workflow_dispatch:
+
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    container:
-      image: julia:1.11
-    
+
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
-    
-    - name: Install dependencies
+
+    - uses: julia-actions/setup-julia@v2
+      with:
+        version: '1.11'
+
+    - uses: julia-actions/cache@v2
+
+    - name: Instantiate docs environment
       run: julia --project=docs -e 'ENV["JULIA_SSL_NO_VERIFY_HOSTS"] = "pkg.julialang.org,github.com"; using Pkg; Pkg.instantiate()'
-    
+
     - name: Build documentation
       run: julia --project=docs docs/make.jl
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
+
+    - name: Upload Pages artifact
+      if: github.event_name != 'pull_request'
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: docs/build
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
