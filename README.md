@@ -66,22 +66,43 @@ Pkg.add("PEDDY")
 
 ```julia
 using PEDDY
+using DimensionalData
+using Dates
 
-# Create a basic pipeline
+# 1. Create dummy data (DimArray with Var and Ti dimensions)
+times_hf = DateTime(2024, 1, 1, 0, 0, 0):Millisecond(50):DateTime(2024, 1, 1, 0, 0, 10)
+times_lf = DateTime(2024, 1, 1, 0, 0, 0):Second(1):DateTime(2024, 1, 1, 0, 0, 10)
+
+hf_vars = [:Ux, :Uy, :Uz, :Ts, :diag_sonic]
+lf_vars = [:TA, :RH]
+
+high_frequency_data = DimArray(
+    rand(length(hf_vars), length(times_hf)),
+    (Var(hf_vars), Ti(times_hf))
+)
+# Ensure diagnostics are within limits
+high_frequency_data[Var(At(:diag_sonic))] .= 0.0
+
+low_frequency_data = DimArray(
+    rand(length(lf_vars), length(times_lf)),
+    (Var(lf_vars), Ti(times_lf))
+)
+
+# 2. Configure the pipeline
 sensor = CSAT3()
-high_frequency_data = rand(3,30) # Your data
-low_frequency_data = rand(3,10) # Your data
-output = MemoryOutput() # Don't write to disk, just store in memory
+output = MemoryOutput() 
 pipeline = EddyPipeline(
     sensor = sensor,
     quality_control = PhysicsBoundsCheck(),
     gap_filling = GeneralInterpolation(),
-    gas_analyzer = H2OCalibration(),
     output = output
 )
 
-# Process your data
+# 3. Process your data
 process!(pipeline, high_frequency_data, low_frequency_data)
+
+# 4. Access results
+hf_res, lf_res = PEDDY.get_results(output)
 ```
 
 ## Data Format
