@@ -317,7 +317,3 @@ write_data(out, hf, lf)
 
 ```@index
 ```
-
-```@autodocs
-Modules = [PEDDY]
-```

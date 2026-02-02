@@ -20,6 +20,14 @@ Fields:
     H20_Span::N
 end
 
+"""
+    LICOR(; number_type=Float64, diag_sonic=0, diag_gas=240, calibration_coefficients=nothing)
+
+LI-COR gas analyzer / sonic configuration with optional H2O calibration coefficients.
+
+If `calibration_coefficients` is provided, it can be used by gas analyzer correction
+steps (e.g. `H2OCalibration`).
+"""
 @kwdef struct LICOR{N<:Real, COEFF <: Union{Nothing,H2OCalibrationCoefficients{N}}} <: AbstractSensor
     number_type::Type{N} = Float64 # needed for calls where COEFF = Nothing
     diag_sonic::Int = 0

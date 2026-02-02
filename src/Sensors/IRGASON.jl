@@ -1,3 +1,11 @@
+"""
+     IRGASON(; diag_sonic=0, diag_gas=0)
+
+ LI-COR IRGASON integrated sonic anemometer + gas analyzer.
+
+ During `check_diagnostics!`, records with diagnostics exceeding the configured
+ thresholds are set to `NaN` for the affected variables.
+ """
 @kwdef struct IRGASON <: AbstractSensor
     diag_sonic::Int = 0
     diag_gas::Int = 0 

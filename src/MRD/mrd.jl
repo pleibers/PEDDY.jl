@@ -1,6 +1,24 @@
 export OrthogonalMRD, MRDResults, get_mrd_results
 
 """
+    MRDResults
+
+Strongly-typed MRD output container.
+
+Fields:
+- `scales::Vector{T}`: time scales (seconds) for indices `1..M`
+- `mrd::Matrix{T}`: mean of window-mean products per scale and block (`M × N`)
+- `mrd_std::Matrix{T}`: sample std (ddof=1) across window-mean products (`M × N`)
+- `times::AbstractVector{<:Dates.TimeType}`: midpoint times per block
+"""
+struct MRDResults{T<:Real}
+    scales::Vector{T}
+    mrd::Matrix{T}
+    mrd_std::Matrix{T}
+    times::AbstractVector{<:Dates.TimeType}
+end
+
+"""
     OrthogonalMRD(; M=11, Mx=0, shift=256, a=:Uz, b=:Ts,
                     gap_threshold_seconds=10.0, normalize=false, regular_grid=false)
 
@@ -9,37 +27,8 @@ Multi-Resolution Decomposition (MRD) step adapted from the pepy project (Vickers
 Computes an orthogonal multiresolution covariance between variables `a` and `b` over
 sliding, gap-aware blocks of length 2^M samples, stepped by `shift` samples.
 
-Minimal results are stored inside the struct and can be retrieved with `get_mrd_results`.
-
-# Parameters
-- `M::Int`: Maximum scale exponent; block length is 2^M samples (default 11)
-- `Mx::Int`: Lowest scale to include (0 means include all scales 1..M)
-- `shift::Int`: Step size in samples between successive MRD blocks
-- `a::Symbol`: First variable (e.g., :Uz)
-- `b::Symbol`: Second variable (e.g., :Ts)
-- `gap_threshold_seconds::Real`: Maximum allowed time gap within a block
-- `normalize::Bool`: If true, normalizes MRD using centered moving-average of a*b
-- `regular_grid::Bool`: If true, backfills invalid blocks with NaN columns to keep a regular block grid; if false, skips invalid blocks (default false)
-
-# Notes
-- Uses `mean_skipnan` to ignore NaNs, consistent with the package style.
-- Does not mutate the data; only computes decomposition and stores results.
+Minimal results are stored in `m.results` and can be retrieved with `get_mrd_results`.
 """
-struct MRDResults{T<:Real}
-    """Strongly-typed MRD output container.
-
-    Fields:
-    - scales::Vector{T}: time scales (seconds) for indices 1..M
-    - mrd::Matrix{T}: mean of window-mean products per scale and block (M × N)
-    - mrd_std::Matrix{T}: sample std (ddof=1) across window-mean products (M × N)
-    - times::AbstractVector{<:Dates.TimeType}: midpoint times per block
-    """
-    scales::Vector{T}
-    mrd::Matrix{T}
-    mrd_std::Matrix{T}
-    times::AbstractVector{<:Dates.TimeType}
-end
-
 mutable struct OrthogonalMRD{T<:Real} <: AbstractMRD
     M::Int
     Mx::Int

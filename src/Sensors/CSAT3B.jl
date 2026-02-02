@@ -1,3 +1,12 @@
+"""
+     CSAT3B(; diag_sonic=0)
+
+ Campbell Scientific CSAT3B sonic anemometer.
+
+ The `diag_sonic` threshold controls which diagnostic values are considered invalid.
+ During `check_diagnostics!`, records exceeding this threshold are set to `NaN` for
+ wind components and sonic temperature.
+ """
 @kwdef struct CSAT3B <: AbstractSensor
     diag_sonic::Int = 0
 end

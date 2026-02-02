@@ -19,6 +19,7 @@ export metadata_for
 
 # Input
 export read_data
+export AbstractInput
 
 export DotDatDirectory
 export FileOptions

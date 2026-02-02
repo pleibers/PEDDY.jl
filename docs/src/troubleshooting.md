@@ -617,7 +617,7 @@ end
 
 ### Q: How do I cite PEDDY.jl?
 
-**A:** See the [README](../README.md) for citation information and DOI.
+**A:** See the [README](https://github.com/pleibers/PEDDY.jl/blob/main/README.md) for citation information and DOI.
 
 ## Getting Help
 

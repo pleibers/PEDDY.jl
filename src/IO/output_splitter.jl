@@ -1,14 +1,16 @@
 """
-    OutputSplitter(output; block_duration, naming=:time)
+    OutputSplitter
 
 Adapter that wraps another `AbstractOutput` and writes multiple files by
-splitting the input data into consecutive time blocks of length `block_duration`.
+splitting the input data into consecutive time blocks.
 
-Arguments:
+Fields:
 - `output::AbstractOutput`: The underlying writer (e.g., `ICSVOutput`, `NetCDFOutput`).
 - `block_duration::Dates.Period`: Size of each time block (e.g., `Dates.Hour(1)`).
 - `naming::Symbol`: Suffixing strategy, `:time` (start timestamp + period) or `:index`.
 """
+
+@doc (@doc OutputSplitter) OutputSplitter
 
 @kwdef struct OutputSplitter{O<:AbstractOutput} <: AbstractOutput
     output::O

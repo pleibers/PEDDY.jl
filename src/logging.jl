@@ -41,6 +41,14 @@ struct NoOpLogger <: AbstractProcessingLogger end
                         ::AbstractVector, ::AbstractVector{Int}; kwargs...) = nothing
 @inline log_mask_runs!(::NoOpLogger, ::Symbol, ::Symbol, ::Union{Symbol,Nothing},
                        ::AbstractVector, ::AbstractVector{Bool}; kwargs...) = nothing
+"""
+    is_logging_enabled(logger::AbstractProcessingLogger) -> Bool
+
+Return `true` if `logger` is an active logger that records events, and `false` for
+`NoOpLogger`.
+"""
+function is_logging_enabled end
+
 @inline is_logging_enabled(::NoOpLogger) = false
 
 # =============================================================================

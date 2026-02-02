@@ -21,6 +21,7 @@ makedocs(;
          sitename="PEDDY.jl",
          format=Documenter.HTML(;
                                 edit_link="main",
+                                repolink="https://github.com/pleibers/PEDDY.jl",
                                 assets=String[],),
          repo="",
          remotes=nothing,
@@ -29,7 +30,6 @@ makedocs(;
              "Home" => "index.md",
              "Overview" => "overview.md",
              "Quick Reference" => "quick_reference.md",
-             "Tutorial" => "index.md",
              "API Reference" => "api.md",
              "Data Format & Architecture" => "data_format.md",
              "Sensor Configuration" => "sensors.md",

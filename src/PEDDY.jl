@@ -7,31 +7,132 @@ using DimensionalData: @dim
 
 abstract type PipelineStep end
 
+"""
+    AbstractSensor
+
+Abstract supertype for sensors. Concrete sensor types (e.g. `CSAT3`, `IRGASON`, `LICOR`)
+define how diagnostics are interpreted and which variables are required/present.
+"""
 abstract type AbstractSensor end
+
+"""
+    check_diagnostics!(sensor::AbstractSensor, data::DimArray; kwargs...)
+
+Sensor-specific diagnostics check. Implementations may set invalid records to `NaN`
+and optionally log affected indices via the processing logger.
+"""
 function check_diagnostics! end
 
+"""
+    AbstractQC
+
+Abstract supertype for quality control (QC) pipeline steps.
+"""
 abstract type AbstractQC <: PipelineStep end
+
+"""
+    quality_control!(qc::AbstractQC, high_frequency_data, low_frequency_data, sensor; kwargs...)
+
+Apply quality control to the data in-place.
+"""
 function quality_control! end
 
+"""
+    AbstractDespiking
+
+Abstract supertype for despiking pipeline steps.
+"""
 abstract type AbstractDespiking <: PipelineStep end
+
+"""
+    despike!(desp::AbstractDespiking, high_frequency_data, low_frequency_data; kwargs...)
+
+Apply despiking to the data in-place.
+"""
 function despike! end
 
+"""
+    AbstractGapFilling
+
+Abstract supertype for gap-filling pipeline steps.
+"""
 abstract type AbstractGapFilling <: PipelineStep end
+
+"""
+    fill_gaps!(gap::AbstractGapFilling, high_frequency_data, low_frequency_data; kwargs...)
+
+Fill small gaps (represented as `NaN`) in-place.
+"""
 function fill_gaps! end
 
+"""
+    AbstractMakeContinuous
+
+Abstract supertype for steps that enforce a continuous time axis.
+"""
 abstract type AbstractMakeContinuous <: PipelineStep end
+
+"""
+    make_continuous!(step::AbstractMakeContinuous, high_frequency_data, low_frequency_data; kwargs...)
+
+Insert missing timestamps and fill inserted rows with `NaN`.
+"""
 function make_continuous! end
 
+"""
+    AbstractGasAnalyzer
+
+Abstract supertype for gas analyzer correction steps.
+"""
 abstract type AbstractGasAnalyzer <: PipelineStep end
+
+"""
+    correct_gas_analyzer!(step::AbstractGasAnalyzer, high_frequency_data, low_frequency_data, sensor; kwargs...)
+
+Apply gas analyzer corrections (e.g. H2O correction).
+"""
 function correct_gas_analyzer! end
 
+"""
+    AbstractDoubleRotation
+
+Abstract supertype for coordinate rotation steps.
+"""
 abstract type AbstractDoubleRotation <: PipelineStep end
+
+"""
+    rotate!(step::AbstractDoubleRotation, high_frequency_data, low_frequency_data; kwargs...)
+
+Apply coordinate rotation to wind components in-place.
+"""
 function rotate! end
 
+"""
+    AbstractMRD
+
+Abstract supertype for multi-resolution decomposition (MRD) steps.
+"""
 abstract type AbstractMRD <: PipelineStep end
+
+"""
+    decompose!(step::AbstractMRD, high_frequency_data, low_frequency_data; kwargs...)
+
+Run a multi-resolution decomposition. Implementations store results inside `step`.
+"""
 function decompose! end
 
+"""
+    AbstractOutput
+
+Abstract supertype for output writers.
+"""
 abstract type AbstractOutput <: PipelineStep end
+
+"""
+    write_data(output::AbstractOutput, high_frequency_data, low_frequency_data=nothing; kwargs...)
+
+Write processed data to an output sink (files, memory, etc.).
+"""
 function write_data end
 
 const OptionalPipelineStep = Union{Nothing,PipelineStep}
