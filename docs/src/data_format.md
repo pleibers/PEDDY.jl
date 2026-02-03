@@ -2,7 +2,7 @@
 
 ## Overview
 
-PEDDY.jl uses [DimensionalData.jl](https://rafaqz.github.io/DimensionalData.jl/dev/) for all data representation. This provides labeled, dimension-aware arrays that make code more readable and less error-prone than plain matrices.
+Peddy.jl uses [DimensionalData.jl](https://rafaqz.github.io/DimensionalData.jl/dev/) for all data representation. This provides labeled, dimension-aware arrays that make code more readable and less error-prone than plain matrices.
 
 ## DimensionalData Basics
 
@@ -32,7 +32,7 @@ slice = arr[Ti=At(times[1])]    # Get first time slice
 3. **Robustness**: Reordering dimensions doesn't break code
 4. **Metadata**: Can attach units, descriptions, etc.
 
-## PEDDY Data Format
+## Peddy Data Format
 
 ### High-Frequency Data
 
@@ -176,7 +176,7 @@ is_regular = all(x -> x == time_diffs[1], time_diffs)
 
 ## Working with Missing Data
 
-PEDDY.jl uses `NaN` to represent missing values:
+Peddy.jl uses `NaN` to represent missing values:
 
 ```julia
 # Check for missing values
@@ -191,8 +191,8 @@ using Statistics
 mean_ux = mean(skipmissing(hf[Var=At(:Ux)]))
 std_ux = std(skipmissing(hf[Var=At(:Ux)]))
 
-# PEDDY's mean_skipnan function
-mean_ux = PEDDY.mean_skipnan(hf[Var=At(:Ux)])
+# Peddy's mean_skipnan function
+mean_ux = Peddy.mean_skipnan(hf[Var=At(:Ux)])
 ```
 
 ## Data Validation
@@ -210,7 +210,7 @@ function validate_data(hf, lf, sensor)
     end
     
     # Check required variables
-    required = PEDDY.needs_data_cols(sensor)
+    required = Peddy.needs_data_cols(sensor)
     available = val(dims(hf, Var))
     
     for var in required
@@ -271,7 +271,7 @@ parent_data = parent(hf)      # Returns the 5×1000 matrix
 ### Creating Arrays of Different Shapes
 
 ```julia
-# Column-major (variables × time) - PEDDY standard
+# Column-major (variables × time) - Peddy standard
 hf = DimArray(
     rand(5, 1000),
     (Var(vars), Ti(times))
@@ -459,10 +459,10 @@ hf = DimArray(
 
 ### Variable Metadata
 
-PEDDY.jl provides `VariableMetadata` for detailed variable information:
+Peddy.jl provides `VariableMetadata` for detailed variable information:
 
 ```julia
-using PEDDY
+using Peddy
 
 # Get default metadata
 meta = get_default_metadata(:Ux)

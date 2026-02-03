@@ -4,7 +4,7 @@
 
 ```julia
 using Pkg
-Pkg.add("PEDDY")
+Pkg.add("Peddy")
 ```
 
 Or for development:
@@ -17,7 +17,7 @@ julia> using Pkg; Pkg.instantiate()
 ## Minimal Example
 
 ```julia
-using PEDDY
+using Peddy
 using DimensionalData
 using Dates
 
@@ -52,7 +52,7 @@ pipeline = EddyPipeline(
 process!(pipeline, hf, nothing)
 
 # Get results
-hf_res, lf_res = PEDDY.get_results(out)
+hf_res, lf_res = Peddy.get_results(out)
 ```
 
 ## Common Configurations
@@ -144,7 +144,7 @@ ux[ux .> 100] .= NaN
 
 ```julia
 ux = hf[Var=At(:Ux)]
-mean_ux = PEDDY.mean_skipnan(ux)
+mean_ux = Peddy.mean_skipnan(ux)
 std_ux = std(skipmissing(ux))
 ```
 
@@ -308,7 +308,7 @@ hf, lf = read_data(input, CSAT3())
 ```julia
 out = MemoryOutput()
 process!(pipeline, hf, lf)
-hf_res, lf_res = PEDDY.get_results(out)
+hf_res, lf_res = Peddy.get_results(out)
 ```
 
 ### Write to CSV
@@ -483,10 +483,10 @@ Variables:
 
 ```julia
 # Mean ignoring NaN
-PEDDY.mean_skipnan(arr)
+Peddy.mean_skipnan(arr)
 
 # Get results from MemoryOutput
-hf_res, lf_res = PEDDY.get_results(output)
+hf_res, lf_res = Peddy.get_results(output)
 
 # Get MRD results
 results = get_mrd_results(mrd)

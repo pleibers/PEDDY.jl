@@ -1,16 +1,16 @@
 using Test
-using PEDDY
+using Peddy
 using DimensionalData
 
 @testset "Quality Control Tests" begin
     @testset "Limit Struct" begin
         # Test Limit constructor and functionality
-        limit = PEDDY.Limit(-10.0, 10.0)
+        limit = Peddy.Limit(-10.0, 10.0)
         @test limit.min == -10.0
         @test limit.max == 10.0
 
         # Test with different number types
-        int_limit = PEDDY.Limit(-5, 5)
+        int_limit = Peddy.Limit(-5, 5)
         @test int_limit.min == -5
         @test int_limit.max == 5
         @test typeof(int_limit.min) == Int
@@ -18,28 +18,28 @@ using DimensionalData
 
     @testset "PhysicsBoundsCheck Constructor" begin
         # Test default constructor
-        qc = PEDDY.PhysicsBoundsCheck()
-        @test qc isa PEDDY.PhysicsBoundsCheck
+        qc = Peddy.PhysicsBoundsCheck()
+        @test qc isa Peddy.PhysicsBoundsCheck
         @test qc.Ux.min == -100.0
         @test qc.Ux.max == 100.0
 
         # Test custom constructor with specific limits
-        custom_qc = PEDDY.PhysicsBoundsCheck(; Ux=PEDDY.Limit(-50.0, 50.0),
-                                             Uy=PEDDY.Limit(-30.0, 30.0))
+        custom_qc = Peddy.PhysicsBoundsCheck(; Ux=Peddy.Limit(-50.0, 50.0),
+                                             Uy=Peddy.Limit(-30.0, 30.0))
         @test custom_qc.Ux.min == -50.0
         @test custom_qc.Ux.max == 50.0
         @test custom_qc.Uy.min == -30.0
         @test custom_qc.Uy.max == 30.0
 
         # Test with different number type
-        float32_qc = PEDDY.PhysicsBoundsCheck(; number_type=Float32)
+        float32_qc = Peddy.PhysicsBoundsCheck(; number_type=Float32)
         @test typeof(float32_qc.Ux.min) == Float32
         @test typeof(float32_qc.Ux.max) == Float32
     end
 
     @testset "Default Physical Limits" begin
         # Test that default limits are reasonable for eddy covariance
-        defaults = PEDDY.default_physical_limits(; number_type=Float64)
+        defaults = Peddy.default_physical_limits(; number_type=Float64)
 
         # Wind speed limits should be reasonable
         @test defaults[:Ux].min < 0
@@ -61,8 +61,8 @@ using DimensionalData
 
     @testset "Quality Control Application" begin
         # Create test data with some out-of-bounds values
-        sensor = PEDDY.CSAT3()
-        needed_cols = collect(PEDDY.needs_data_cols(sensor))  # Convert tuple to vector
+        sensor = Peddy.CSAT3()
+        needed_cols = collect(Peddy.needs_data_cols(sensor))  # Convert tuple to vector
         n_points = 20
         n_vars = length(needed_cols)
 
@@ -87,8 +87,8 @@ using DimensionalData
         original_extreme_ts = hd[Ti=8, Var=At(:Ts)]  # Should be -60.0
 
         # Apply quality control
-        qc = PEDDY.PhysicsBoundsCheck()
-        PEDDY.quality_control!(qc, hd, ld, sensor)
+        qc = Peddy.PhysicsBoundsCheck()
+        Peddy.quality_control!(qc, hd, ld, sensor)
 
         # Test that extreme values were flagged (set to NaN)
         @test isnan(hd[Ti=5, Var=At(:Ux)])   # Extreme Ux should be NaN
@@ -110,8 +110,8 @@ using DimensionalData
 
     @testset "Custom Bounds Application" begin
         # Test with custom, more restrictive bounds
-        sensor = PEDDY.CSAT3()
-        needed_cols = collect(PEDDY.needs_data_cols(sensor))  # Convert tuple to vector
+        sensor = Peddy.CSAT3()
+        needed_cols = collect(Peddy.needs_data_cols(sensor))  # Convert tuple to vector
         n_points = 10
         n_vars = length(needed_cols)
 
@@ -122,11 +122,11 @@ using DimensionalData
         ld = DimArray(rand(3, n_vars), (Ti(1:3), Var(needed_cols)))
 
         # Apply restrictive QC (max wind speed = 15 m/s)
-        restrictive_qc = PEDDY.PhysicsBoundsCheck(; Ux=PEDDY.Limit(-15.0, 15.0),
-                                                  Uy=PEDDY.Limit(-15.0, 15.0),
-                                                  Uz=PEDDY.Limit(-15.0, 15.0))
+        restrictive_qc = Peddy.PhysicsBoundsCheck(; Ux=Peddy.Limit(-15.0, 15.0),
+                                                  Uy=Peddy.Limit(-15.0, 15.0),
+                                                  Uz=Peddy.Limit(-15.0, 15.0))
 
-        PEDDY.quality_control!(restrictive_qc, hd, ld, sensor)
+        Peddy.quality_control!(restrictive_qc, hd, ld, sensor)
 
         # All wind values (20 m/s) should now be NaN due to restrictive bounds
         @test isnan(hd[Ti=1, Var=At(:Ux)])
@@ -139,8 +139,8 @@ using DimensionalData
 
     @testset "Edge Cases" begin
         # Test with boundary values
-        sensor = PEDDY.CSAT3()
-        needed_cols = collect(PEDDY.needs_data_cols(sensor))  # Convert tuple to vector
+        sensor = Peddy.CSAT3()
+        needed_cols = collect(Peddy.needs_data_cols(sensor))  # Convert tuple to vector
 
         # Create data exactly at boundaries
         test_data = zeros(3, length(needed_cols))
@@ -151,8 +151,8 @@ using DimensionalData
         hd[Ti=3, Var=At(:Ux)] = 99.9    # Just within bounds
         ld = DimArray(rand(2, length(needed_cols)), (Ti(1:2), Var(needed_cols)))
 
-        qc = PEDDY.PhysicsBoundsCheck()
-        PEDDY.quality_control!(qc, hd, ld, sensor)
+        qc = Peddy.PhysicsBoundsCheck()
+        Peddy.quality_control!(qc, hd, ld, sensor)
 
         # Boundary values should be preserved (assuming inclusive bounds)
         # This tests the specific implementation of bounds checking
@@ -162,8 +162,8 @@ using DimensionalData
 
     @testset "No QC (Nothing) Case" begin
         # Test that passing nothing for QC does nothing
-        sensor = PEDDY.CSAT3()
-        needed_cols = collect(PEDDY.needs_data_cols(sensor))  # Convert tuple to vector
+        sensor = Peddy.CSAT3()
+        needed_cols = collect(Peddy.needs_data_cols(sensor))  # Convert tuple to vector
         n_points = 5
         n_vars = length(needed_cols)
 
@@ -175,7 +175,7 @@ using DimensionalData
         ld = DimArray(rand(2, n_vars), (Ti(1:2), Var(needed_cols)))
 
         # Apply no QC (should do nothing)
-        PEDDY.quality_control!(nothing, hd, ld, sensor)
+        Peddy.quality_control!(nothing, hd, ld, sensor)
 
         # Data should be unchanged
         @test hd.data == original_data
@@ -184,8 +184,8 @@ using DimensionalData
 
     @testset "Integration with Pipeline" begin
         # Test QC integration in full pipeline
-        sensor = PEDDY.CSAT3()
-        needed_cols = collect(PEDDY.needs_data_cols(sensor))  # Convert tuple to vector
+        sensor = Peddy.CSAT3()
+        needed_cols = collect(Peddy.needs_data_cols(sensor))  # Convert tuple to vector
         n_points = 15
         n_vars = length(needed_cols)
 
@@ -198,10 +198,10 @@ using DimensionalData
         ld = DimArray(rand(5, n_vars), (Ti(1:5), Var(needed_cols)))
 
         # Set up pipeline with QC only
-        output = PEDDY.MemoryOutput()
-        qc = PEDDY.PhysicsBoundsCheck()
+        output = Peddy.MemoryOutput()
+        qc = Peddy.PhysicsBoundsCheck()
 
-        pipeline = PEDDY.EddyPipeline(; sensor=sensor,
+        pipeline = Peddy.EddyPipeline(; sensor=sensor,
                                       quality_control=qc,
                                       despiking=nothing,
                                       gap_filling=nothing,
@@ -211,10 +211,10 @@ using DimensionalData
                                       output=output)
 
         # Run pipeline
-        PEDDY.process!(pipeline, hd, ld)
+        Peddy.process!(pipeline, hd, ld)
 
         # Get results
-        processed_hf, processed_lf = PEDDY.get_results(output)
+        processed_hf, processed_lf = Peddy.get_results(output)
 
         # Test that extreme values were removed
         @test isnan(processed_hf[Ti=7, Var=At(:Ux)])

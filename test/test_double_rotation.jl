@@ -1,5 +1,5 @@
 using Test
-using PEDDY
+using Peddy
 using DimensionalData
 using Dates
 using Statistics
@@ -33,8 +33,8 @@ end
         hd = DimArray(data, (t, vars))
         ld = DimArray(zeros(10, 1), (Ti(1:10), Var([:dummy])))
 
-        dr = PEDDY.WindDoubleRotation(block_duration_minutes=0.5) # 30s blocks
-        PEDDY.rotate!(dr, hd, ld)
+        dr = Peddy.WindDoubleRotation(block_duration_minutes=0.5) # 30s blocks
+        Peddy.rotate!(dr, hd, ld)
 
         v_rot = hd[Var=At(:Uy)]
         w_rot = hd[Var=At(:Uz)]
@@ -62,8 +62,8 @@ end
         hd = DimArray(hcat(u, v, w), (t, vars))
         ld = DimArray(zeros(5, 1), (Ti(1:5), Var([:dummy])))
 
-        dr = PEDDY.WindDoubleRotation(block_duration_minutes=1.0)
-        PEDDY.rotate!(dr, hd, ld)
+        dr = Peddy.WindDoubleRotation(block_duration_minutes=1.0)
+        Peddy.rotate!(dr, hd, ld)
 
         # Means of rotated v,w (ignoring NaNs) should be ~0
         v_rot = hd[Var=At(:Uy)]

@@ -1,7 +1,7 @@
-using PEDDY
+using Peddy
 using Test
 
-@testset "PEDDY.jl" begin
+@testset "Peddy.jl" begin
     # Include all test modules
     @testset "IO" begin
         include("test_io_dat_directory.jl")

@@ -1,6 +1,6 @@
 # Sensor Configuration Guide
 
-PEDDY.jl supports multiple eddy covariance sensors. Each sensor defines the variables it provides and any calibration coefficients needed for gas analyzer correction.
+Peddy.jl supports multiple eddy covariance sensors. Each sensor defines the variables it provides and any calibration coefficients needed for gas analyzer correction.
 
 ## Supported Sensors
 
@@ -341,7 +341,7 @@ process!(pipeline, hf, lf)
 If your sensor is not supported, create a custom type:
 
 ```julia
-using PEDDY
+using Peddy
 
 struct MySensor <: AbstractSensor
     name::String
@@ -356,11 +356,11 @@ function MySensor()
 end
 
 # Implement required interface
-function PEDDY.needs_data_cols(sensor::MySensor)
+function Peddy.needs_data_cols(sensor::MySensor)
     return sensor.required_variables
 end
 
-function PEDDY.check_diagnostics!(sensor::MySensor, hf; kwargs...)
+function Peddy.check_diagnostics!(sensor::MySensor, hf; kwargs...)
     if :diag in dims(hf, Var)
         diag = hf[Var=At(:diag)]
         n_bad = count(x -> !isfinite(x) || x > 0, diag)
@@ -447,5 +447,5 @@ outliers = ts[abs.(ts .- mean_ts) .> 5 * std_ts]
 
 - [API Reference](api.md) - Sensor types and functions
 - [Tutorial](index.md) - Practical examples
-- [Extending PEDDY.jl](extending.md) - Creating custom sensors
+- [Extending Peddy.jl](extending.md) - Creating custom sensors
 - [Troubleshooting](troubleshooting.md) - Common issues

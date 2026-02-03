@@ -1,5 +1,5 @@
 using Test
-using PEDDY
+using Peddy
 using DimensionalData
 using Statistics
 
@@ -40,29 +40,29 @@ using Statistics
 
     @testset "LICOR sensor with calibration coefficients" begin
         # Test predefined sensor configurations
-        calibration_coefficients = PEDDY.default_calibration_coefficients("SFC", 2024)
+        calibration_coefficients = Peddy.default_calibration_coefficients("SFC", 2024)
         @test calibration_coefficients !== nothing
         @test calibration_coefficients.A ≈ 4.82004E3
 
-        calibration_coefficients_lower = PEDDY.default_calibration_coefficients("LOWER")
+        calibration_coefficients_lower = Peddy.default_calibration_coefficients("LOWER")
         @test calibration_coefficients_lower !== nothing
         @test calibration_coefficients_lower.A ≈ 5.49957E3
 
-        calibration_coefficients_upper = PEDDY.default_calibration_coefficients("UPPER")
+        calibration_coefficients_upper = Peddy.default_calibration_coefficients("UPPER")
         @test calibration_coefficients_upper !== nothing
         @test calibration_coefficients_upper.A ≈ 4.76480E3
 
-        calibration_coefficients_bottom = PEDDY.default_calibration_coefficients("BOTTOM")
+        calibration_coefficients_bottom = Peddy.default_calibration_coefficients("BOTTOM")
         @test calibration_coefficients_bottom === nothing
 
         # Test default LICOR (no calibration)
-        calibration_coefficients_default = PEDDY.default_calibration_coefficients()
+        calibration_coefficients_default = Peddy.default_calibration_coefficients()
         @test calibration_coefficients_default === nothing
     end
 
     @testset "get_calibration_coefficients function" begin
         # Test with LICOR sensor that has coefficients
-        coeffs = PEDDY.default_calibration_coefficients("SFC", 2024)
+        coeffs = Peddy.default_calibration_coefficients("SFC", 2024)
         sensor_with_coeffs = LICOR(; calibration_coefficients=coeffs)
         coeffs = get_calibration_coefficients(sensor_with_coeffs)
         @test coeffs !== nothing
@@ -84,18 +84,18 @@ using Statistics
         RH = 60.0  # 60% relative humidity
         TA = 20.0  # 20°C temperature
 
-        h2o_conc = PEDDY.compute_h2o_concentration(RH, TA)
+        h2o_conc = Peddy.compute_h2o_concentration(RH, TA)
         @test h2o_conc > 0
         @test h2o_conc ≈ 575.0 atol = 1.0  # Approximate expected value
 
         # Test with edge cases
-        @test PEDDY.compute_h2o_concentration(0.0, 20.0) ≈ 0.0 atol = 1e-6
-        @test PEDDY.compute_h2o_concentration(100.0, 0.0) > 0
+        @test Peddy.compute_h2o_concentration(0.0, 20.0) ≈ 0.0 atol = 1e-6
+        @test Peddy.compute_h2o_concentration(100.0, 0.0) > 0
 
         # Test with arrays
         RH_array = [50.0, 60.0, 70.0]
         TA_array = [15.0, 20.0, 25.0]
-        h2o_array = PEDDY.compute_h2o_concentration.(RH_array, TA_array)
+        h2o_array = Peddy.compute_h2o_concentration.(RH_array, TA_array)
         @test length(h2o_array) == 3
         @test all(h2o_array .> 0)
     end
@@ -109,16 +109,16 @@ using Statistics
 
         # Test with typical y value
         y = -0.001
-        absorptance = PEDDY.solve_polynomial_absorptance(y, coeffs)
+        absorptance = Peddy.solve_polynomial_absorptance(y, coeffs)
         @test !isnan(absorptance)
         @test absorptance < 0
 
         # Test with NaN input
-        absorptance_nan = PEDDY.solve_polynomial_absorptance(NaN, coeffs)
+        absorptance_nan = Peddy.solve_polynomial_absorptance(NaN, coeffs)
         @test isnan(absorptance_nan)
 
         # Test with zero (polynomial solver may not return exactly zero)
-        absorptance_zero = PEDDY.solve_polynomial_absorptance(0.0, coeffs)
+        absorptance_zero = Peddy.solve_polynomial_absorptance(0.0, coeffs)
         @test absorptance_zero ≈ 0.0 atol = 5e-3
     end
 
@@ -147,7 +147,7 @@ using Statistics
                            (Ti(lf_times), Var([:TA, :RH])))
 
         # Create sensor with calibration coefficients
-        sensor = LICOR(; calibration_coefficients=PEDDY.default_calibration_coefficients("SFC", 2024))
+        sensor = LICOR(; calibration_coefficients=Peddy.default_calibration_coefficients("SFC", 2024))
         gas_analyzer = H2OCalibration()
 
         # Test that correction runs without error
@@ -211,7 +211,7 @@ using Statistics
         hf_test_data = DimArray(hcat(h2o_test, pressure_test),
                                 (Ti(hf_times), Var([:H2O, :P])))
 
-        h2o_lf, pres_lf = PEDDY.resample_to_low_frequency(hf_test_data, :H2O, :P, n_lf,
+        h2o_lf, pres_lf = Peddy.resample_to_low_frequency(hf_test_data, :H2O, :P, n_lf,
                                                     n_hf_per_lf, hf_times)
 
         @test length(h2o_lf) == n_lf
@@ -228,7 +228,7 @@ using Statistics
         rh_test = fill(60.0, 5)  # %
         temp_test = fill(20.0, 5)  # °C
 
-        li_a_raw, rh_a_raw = PEDDY.calculate_reference_absorptances(h2o_lf_test, pres_lf_test,
+        li_a_raw, rh_a_raw = Peddy.calculate_reference_absorptances(h2o_lf_test, pres_lf_test,
                                                               rh_test, temp_test, coeffs)
 
         @test length(li_a_raw) == 5

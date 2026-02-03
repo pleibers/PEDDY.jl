@@ -1,5 +1,5 @@
 using Test
-using PEDDY
+using Peddy
 using DimensionalData
 using Statistics
 using Dates
@@ -7,13 +7,13 @@ using Dates
 @testset "Despiking Tests" begin
     @testset "VariableGroup Construction" begin
         # Test VariableGroup construction
-        wind_group = PEDDY.VariableGroup("Wind Components", [:Ux, :Uy, :Uz])
+        wind_group = Peddy.VariableGroup("Wind Components", [:Ux, :Uy, :Uz])
         @test wind_group.name == "Wind Components"
         @test wind_group.variables == [:Ux, :Uy, :Uz]
         @test wind_group.spike_threshold == 6.0  # Default threshold
         
         # Test VariableGroup with custom threshold
-        temp_group = PEDDY.VariableGroup("Temperature", [:Ts], spike_threshold=5.0)
+        temp_group = Peddy.VariableGroup("Temperature", [:Ts], spike_threshold=5.0)
         @test temp_group.name == "Temperature"
         @test temp_group.variables == [:Ts]
         @test temp_group.spike_threshold == 5.0
@@ -29,8 +29,8 @@ using Dates
         @test despiking.variable_groups[1].spike_threshold == 6.0
         
         # Test custom construction with variable groups
-        wind_group = PEDDY.VariableGroup("Wind", [:Ux, :Uy, :Uz], spike_threshold=6.0)
-        temp_group = PEDDY.VariableGroup("Temperature", [:Ts], spike_threshold=5.0)
+        wind_group = Peddy.VariableGroup("Wind", [:Ux, :Uy, :Uz], spike_threshold=6.0)
+        temp_group = Peddy.VariableGroup("Temperature", [:Ts], spike_threshold=5.0)
         
         custom_despiking = SimpleSigmundDespiking(
             window_minutes=3.0,
@@ -42,30 +42,30 @@ using Dates
         @test custom_despiking.variable_groups[2].name == "Temperature"
         
         # Test that it implements AbstractDespiking
-        @test despiking isa PEDDY.AbstractDespiking
+        @test despiking isa Peddy.AbstractDespiking
     end
     
     @testset "Fast Median Internal" begin
         # Test _fast_median! internal helper
         # Case 1: single element
         buf1 = [10.0]
-        @test PEDDY._fast_median!(buf1, 1) == 10.0
+        @test Peddy._fast_median!(buf1, 1) == 10.0
         
         # Case 2: two elements
         buf2 = [10.0, 20.0]
-        @test PEDDY._fast_median!(buf2, 2) == 15.0
+        @test Peddy._fast_median!(buf2, 2) == 15.0
         
         # Case 3: odd elements
         buf3 = [30.0, 10.0, 20.0, 40.0, 50.0]
-        @test PEDDY._fast_median!(buf3, 5) == 30.0
+        @test Peddy._fast_median!(buf3, 5) == 30.0
         
         # Case 4: even elements
         buf4 = [30.0, 10.0, 20.0, 40.0]
-        @test PEDDY._fast_median!(buf4, 4) == 25.0
+        @test Peddy._fast_median!(buf4, 4) == 25.0
         
         # Case 5: partial buffer
         buf5 = [3.0, 1.0, 2.0, 100.0, 100.0]
-        @test PEDDY._fast_median!(buf5, 3) == 2.0
+        @test Peddy._fast_median!(buf5, 3) == 2.0
     end
 
     @testset "Window Size Calculation" begin
@@ -75,18 +75,18 @@ using Dates
         
         # 1 minute window at 10Hz = 600 points
         # 600 < 2000/3 (666.6), so it shouldn't be adjusted
-        @test PEDDY._calculate_window_size(data, 1.0) == 600
+        @test Peddy._calculate_window_size(data, 1.0) == 600
         
         # Limited data case (1/3 of total)
         # 20 minute window would be 12000 points, but total is 2000. 
         # Should be capped at 2000 ÷ 3 = 666
-        @test_logs (:warn, r"Adjusted window size") PEDDY._calculate_window_size(data, 20.0) == 666
+        @test_logs (:warn, r"Adjusted window size") Peddy._calculate_window_size(data, 20.0) == 666
     end
     
     @testset "Pattern Deviation Calculation" begin
         # Test pattern deviation calculation
         df_di = [1.0, 2.0, 10.0, 3.0, 4.0]  # Spike at position 3
-        df_hat = PEDDY.calculate_pattern_deviation(df_di)
+        df_hat = Peddy.calculate_pattern_deviation(df_di)
         
         # The spike should have higher pattern deviation
         @test df_hat[3] > df_hat[1]
@@ -100,7 +100,7 @@ using Dates
         
         # Test with uniform deviations (no spikes) - should be zero deviations
         uniform_deviations = [0.0, 0.0, 0.0, 0.0, 0.0]  # No deviations from median
-        uniform_hat = PEDDY.calculate_pattern_deviation(uniform_deviations)
+        uniform_hat = Peddy.calculate_pattern_deviation(uniform_deviations)
         @test all(x -> abs(x) < 1e-10, uniform_hat)  # Should be near zero
     end
     
@@ -143,7 +143,7 @@ using Dates
         )
         
         # Apply despiking with custom variable group
-        sonic_group = PEDDY.VariableGroup("Sonic Variables", [:Ux, :Uy, :Uz, :Ts], spike_threshold=4.0)
+        sonic_group = Peddy.VariableGroup("Sonic Variables", [:Ux, :Uy, :Uz, :Ts], spike_threshold=4.0)
         despiking = SimpleSigmundDespiking(window_minutes=2.0, variable_groups=[sonic_group])
         
         # Count original NaN values
@@ -201,8 +201,8 @@ using Dates
         )
         
         # Apply despiking with separate groups for sonic and H2O
-        sonic_group = PEDDY.VariableGroup("Sonic", [:Ux, :Uy, :Uz, :Ts], spike_threshold=3.0)
-        h2o_group = PEDDY.VariableGroup("H2O", [:LI_H2Om_corr], spike_threshold=3.0)
+        sonic_group = Peddy.VariableGroup("Sonic", [:Ux, :Uy, :Uz, :Ts], spike_threshold=3.0)
+        h2o_group = Peddy.VariableGroup("H2O", [:LI_H2Om_corr], spike_threshold=3.0)
         despiking = SimpleSigmundDespiking(window_minutes=1.0, variable_groups=[sonic_group, h2o_group])
         low_freq_data = nothing
         
@@ -310,7 +310,7 @@ using Dates
         
         da = DimArray(reshape(data, n, 1), (Ti(times), Var([:Ux])))
         
-        logger = PEDDY.ProcessingLogger()
+        logger = Peddy.ProcessingLogger()
         despiking = SimpleSigmundDespiking(window_minutes=1.0)
         
         despike!(despiking, da, nothing; logger=logger)
@@ -327,14 +327,14 @@ using Dates
     @testset "Small Data Pattern Deviation" begin
         # Test n < 3 case
         d1 = [1.0]
-        @test PEDDY.calculate_pattern_deviation(d1) == [0.5]
+        @test Peddy.calculate_pattern_deviation(d1) == [0.5]
         d2 = [1.0, 2.0]
-        @test PEDDY.calculate_pattern_deviation(d2) == [0.5, 1.0]
+        @test Peddy.calculate_pattern_deviation(d2) == [0.5, 1.0]
     end
 
     @testset "Rolling Median All NaNs" begin
         data = [NaN, NaN, NaN]
-        res = PEDDY.calculate_rolling_median(data, 3)
+        res = Peddy.calculate_rolling_median(data, 3)
         @test all(isnan, res)
     end
 end

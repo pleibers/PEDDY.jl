@@ -1,7 +1,7 @@
 using Test
 using Dates
 using DimensionalData
-using PEDDY
+using Peddy
 
 # Helper to collect data rows from an iCSV file
 function _icsv_data_rows(path::AbstractString)

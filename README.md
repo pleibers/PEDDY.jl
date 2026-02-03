@@ -1,16 +1,16 @@
-# PEDDY.jl
+# Peddy.jl
 
 <p align="center">
-  <img src="docs/assets/logo.png" alt="PEDDY.jl Logo" width="200"/>
+  <img src="docs/assets/logo.png" alt="Peddy.jl Logo" width="200"/>
 </p>
 
-[![CI](https://github.com/pleibers/PEDDY.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/pleibers/PEDDY.jl/actions/workflows/ci.yml)
+[![CI](https://github.com/pleibers/Peddy.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/pleibers/Peddy.jl/actions/workflows/ci.yml)
 
 A Julia package for processing eddy covariance data with a modular, high-performance pipeline architecture.
 
 ## Overview
 
-PEDDY.jl provides a comprehensive framework for eddy covariance data processing, featuring:
+Peddy.jl provides a comprehensive framework for eddy covariance data processing, featuring:
 
 - **Modular Pipeline Architecture**: Configurable processing steps for maximum flexibility
 - **High-Performance Processing**: Optimized Julia implementation for fast data processing
@@ -32,7 +32,7 @@ julia +1.11 --project=docs -e 'using Pkg; Pkg.instantiate(); include("docs/make.
 
 ## Documentation
 
-Full Documentation and practical guides are available at [https://pleibers.github.io/PEDDY.jl/](https://pleibers.github.io/PEDDY.jl/).
+Full Documentation and practical guides are available at [https://pleibers.github.io/Peddy.jl/](https://pleibers.github.io/Peddy.jl/).
 
 ## Roadmap
 
@@ -63,13 +63,13 @@ The MRD step will not modify the data, but instead provide the results inside th
 
 ```julia
 using Pkg
-Pkg.add("PEDDY")
+Pkg.add("Peddy")
 ```
 
 ### Example
 
 ```julia
-using PEDDY
+using Peddy
 using DimensionalData
 using Dates
 
@@ -106,12 +106,12 @@ pipeline = EddyPipeline(
 process!(pipeline, high_frequency_data, low_frequency_data)
 
 # 4. Access results
-hf_res, lf_res = PEDDY.get_results(output)
+hf_res, lf_res = Peddy.get_results(output)
 ```
 
 ## Data Format
 
-PEDDY.jl uses [DimensionalData.jl](https://rafaqz.github.io/DimensionalData.jl/dev/basics) for efficient, labeled array operations:
+Peddy.jl uses [DimensionalData.jl](https://rafaqz.github.io/DimensionalData.jl/dev/basics) for efficient, labeled array operations:
 
 ```julia
 # High-frequency data (typically 10-20 Hz)

@@ -8,7 +8,7 @@ using ProgressMeter
     EddyPipeline(; sensor, quality_control, gas_analyzer, despiking, make_continuous, gap_filling,
                   double_rotation, mrd, output, logger)
 
-High-level orchestrator for the PEDDY.jl processing pipeline.
+High-level orchestrator for the Peddy.jl processing pipeline.
 
 Each step is a pluggable component that implements its respective abstract
 interface. Any step can be set to `nothing` to skip it. The typical order is:
@@ -102,7 +102,7 @@ function process!(pipeline::EddyPipeline, high_frequency_data::DimArray, low_fre
 
     result = nothing
     total_seconds = @elapsed begin
-        prog = ProgressUnknown(;desc="PEDDY is cleaning your data...", spinner=true)
+        prog = ProgressUnknown(;desc="Peddy is cleaning your data...", spinner=true)
 
         check_data(high_frequency_data, low_frequency_data, pipeline.sensor)
 
@@ -149,7 +149,7 @@ function process!(pipeline::EddyPipeline, high_frequency_data::DimArray, low_fre
             write_data(pipeline.output, high_frequency_data, low_frequency_data; logger=logger, kwargs...)
         end
 
-        result = finish!(prog; desc="PEDDY is done cleaning your data!", spinner="🎉")
+        result = finish!(prog; desc="Peddy is done cleaning your data!", spinner="🎉")
     end
     record_stage_time!(logger, :pipeline_total, total_seconds)
     return result

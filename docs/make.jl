@@ -11,17 +11,17 @@ else
     Pkg.instantiate()
 end
 
-using PEDDY
+using Peddy
 
-DocMeta.setdocmeta!(PEDDY, :DocTestSetup, :(using PEDDY); recursive=true)
+DocMeta.setdocmeta!(Peddy, :DocTestSetup, :(using Peddy); recursive=true)
 
 makedocs(;
-         modules=[PEDDY],
+         modules=[Peddy],
          authors="Patrick Leibersperger <patrick.leibersperger@slf.ch>, Patricia Asemann <patriciia.asemann@slf.ch>, Rainette Engbers <rainette.engbers@slf.ch>",
-         sitename="PEDDY.jl",
+         sitename="Peddy.jl",
          format=Documenter.HTML(;
                                 edit_link="main",
-                                repolink="https://github.com/pleibers/PEDDY.jl",
+                                repolink="https://github.com/pleibers/Peddy.jl",
                                 assets=String[],),
          repo="",
          remotes=nothing,
@@ -33,7 +33,7 @@ makedocs(;
              "API Reference" => "api.md",
              "Data Format & Architecture" => "data_format.md",
              "Sensor Configuration" => "sensors.md",
-             "Extending PEDDY.jl" => "extending.md",
+             "Extending Peddy.jl" => "extending.md",
              "Troubleshooting & FAQ" => "troubleshooting.md",
              "Best Practice" => "best_practice.md",
          ],)

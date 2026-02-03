@@ -1,6 +1,6 @@
-# PEDDY.jl Documentation Summary
+# Peddy.jl Documentation Summary
 
-This document summarizes the comprehensive documentation created for PEDDY.jl.
+This document summarizes the comprehensive documentation created for Peddy.jl.
 
 ## Documentation Files Created
 
@@ -52,7 +52,7 @@ This document summarizes the comprehensive documentation created for PEDDY.jl.
 - **Audience**: Users needing detailed function documentation
 
 ### 4. **data_format.md** - Data Format & Architecture Guide
-- **Purpose**: Understanding PEDDY's data model and DimensionalData.jl
+- **Purpose**: Understanding Peddy's data model and DimensionalData.jl
 - **Content**:
   - DimensionalData.jl basics and benefits
   - High-frequency data structure and requirements
@@ -150,7 +150,7 @@ This document summarizes the comprehensive documentation created for PEDDY.jl.
   - Development workflow
   - Git usage
   - Publishing and reproducibility
-- **Audience**: Users developing projects with PEDDY.jl
+- **Audience**: Users developing projects with Peddy.jl
 
 ## Documentation Structure
 
@@ -172,7 +172,7 @@ docs/src/
 
 ### Entry Points
 
-1. **New to PEDDY.jl?** → Start with `overview.md`
+1. **New to Peddy.jl?** → Start with `overview.md`
 2. **Need quick examples?** → Go to `quick_reference.md`
 3. **Want detailed walkthrough?** → Read `index.md` (tutorial)
 4. **Need function details?** → Check `api.md`
@@ -307,7 +307,7 @@ The built documentation will be in `docs/build/`.
 
 - [README.md](../README.md) - Project overview
 - [Project.toml](../Project.toml) - Dependencies
-- [src/PEDDY.jl](../src/PEDDY.jl) - Main module
+- [src/Peddy.jl](../src/Peddy.jl) - Main module
 
 ---
 

@@ -1,6 +1,6 @@
-# PEDDY.jl — Practical tutorial
+# Peddy.jl — Practical tutorial
 
-PEDDY is a Julia package for eddy-covariance data processing. This page is a hands-on guide for scientists who are new to Julia and just want to run the workflow.
+Peddy is a Julia package for eddy-covariance data processing. This page is a hands-on guide for scientists who are new to Julia and just want to run the workflow.
 
 If references in docstrings do not render, they are still kept for completeness.
 
@@ -31,7 +31,7 @@ If references in docstrings do not render, they are still kept for completeness.
 
 ### Development environment
 
-If you want to develop PEDDY, you need to follow these steps:
+If you want to develop Peddy, you need to follow these steps:
 
 - __Install Julia 1.11__: Download from julialang.org. If 1.11 is not your default, prefix commands with `+1.11` (without parentheses). The `+1.11` selector is provided by juliaup.
 - __Open a Julia REPL in the project__:
@@ -50,37 +50,37 @@ julia> Pkg.instantiate()
 
 ### Usage environment
 
-If you want to use PEDDY, you need to have it installed in the environment you are using. with the following command:
+If you want to use Peddy, you need to have it installed in the environment you are using. with the following command:
 
 ```julia
 julia> using Pkg
-julia> Pkg.add("PEDDY")
+julia> Pkg.add("Peddy")
 ```
 
 For the newest version do:
 
 ```julia
 julia> using Pkg
-julia> Pkg.add("PEDDY", rev="master")
+julia> Pkg.add("Peddy", rev="master")
 ```
 
-or (this also works if PEDDY is not registered):
+or (this also works if Peddy is not registered):
 
 ```julia
 julia> using Pkg
-julia> Pkg.add("PEDDY", url="https://github.com/pleibers/PEDDY.jl.git")
+julia> Pkg.add("Peddy", url="https://github.com/pleibers/Peddy.jl.git")
 ```
 
 ---
 
 ## Quick example (synthetic data)
 
-You need to have PEDDY installed in the environment you are using. If you are in the development environment, make sure it is activated.
+You need to have Peddy installed in the environment you are using. If you are in the development environment, make sure it is activated.
 
 This creates tiny high-frequency data in memory and runs a minimal pipeline.
 
 ```julia
-using PEDDY
+using Peddy
 using Dates
 
 # 1) Create small HF dataset (5 seconds at 10 Hz)
@@ -127,7 +127,7 @@ pipe = EddyPipeline(
 process!(pipe, hf, lf)
 
 # 5) Inspect results
-hf_processed, lf_processed = PEDDY.get_results(out)
+hf_processed, lf_processed = Peddy.get_results(out)
 Ux_processed = hf_processed[Var=At(:Ux)]
 println("First 5 Ux values: ", Ux_processed[1:5])
 ```
@@ -136,7 +136,7 @@ println("First 5 Ux values: ", Ux_processed[1:5])
 
 ## Data model in one minute
 
-PEDDY uses labeled arrays from DimensionalData.jl:
+Peddy uses labeled arrays from DimensionalData.jl:
 
 - High-frequency data (HF): a `DimArray` with dimensions `Ti` (time) and `Var` (variables like `:Ux, :Uy, :Uz, :Ts, :H2O, :P`).
 
@@ -151,7 +151,7 @@ You typically get both via `read_data`.
 The simplest input is a directory with .dat/.csv files (see `src/IO/dat_directory.jl`).
 
 ```julia
-using PEDDY
+using Peddy
 
 # Choose or construct a sensor (examples below)
 sensor = IRGASON()  # or LICOR(...), CSAT3(), etc.
@@ -307,7 +307,7 @@ write_data(out, hf, lf)
 
 - __Use Julia 1.11__: always start with `julia +1.11 --project=.`
 - __Variables and dims__: HF/LF must have `Var` and `Ti` dimensions. Index variables with `high_frequency_data[Var=At(:Ux)]`.
-- __Missing values__: PEDDY uses `NaN` representation in arrays for absent/invalid numeric values and handles them internally.
+- __Missing values__: Peddy uses `NaN` representation in arrays for absent/invalid numeric values and handles them internally.
 - __Window/block sizes__: Steps compute sizes from the time axis; ensure time is regular.
 - __H2O correction__: Needs LF `:TA` and `:RH`, HF `:H2O` and `:P`, plus sensor calibration coefficients.
 

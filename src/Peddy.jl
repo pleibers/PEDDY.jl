@@ -1,4 +1,4 @@
-module PEDDY
+module Peddy
 
 using Dates
 using Reexport

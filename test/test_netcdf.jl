@@ -2,7 +2,7 @@ using Test
 using Dates
 using DimensionalData
 using NCDatasets
-using PEDDY
+using Peddy
 
 @testset "NetCDFOutput basic writing" begin
     # --- Test 1: Write only HF file ---

@@ -1,14 +1,14 @@
 using Test
-using PEDDY
+using Peddy
 using Dates
 using DimensionalData
 
 # A dummy sensor matching the columns available in examples/data.dat
-struct DummyHFReadSensor <: PEDDY.AbstractSensor end
-PEDDY.needs_data_cols(::DummyHFReadSensor) = (
+struct DummyHFReadSensor <: Peddy.AbstractSensor end
+Peddy.needs_data_cols(::DummyHFReadSensor) = (
     :diag_csat, :diag_gas, :Ux, :Uy, :Uz, :Ts, :H2O, :P
 )
-PEDDY.has_variables(::DummyHFReadSensor) = (:Ux, :Uy, :Uz, :Ts, :H2O, :P)
+Peddy.has_variables(::DummyHFReadSensor) = (:Ux, :Uy, :Uz, :Ts, :H2O, :P)
 
 @testset "IO: DotDatDirectory reads HF example" begin
     # Create a temporary directory and write a small subset of the example file
@@ -31,7 +31,7 @@ PEDDY.has_variables(::DummyHFReadSensor) = (:Ux, :Uy, :Uz, :Ts, :H2O, :P)
         end
 
         # FileOptions matching the example file (tab-delimited, DateTime with milliseconds)
-        fo = PEDDY.FileOptions(
+        fo = Peddy.FileOptions(
             header=1,
             delimiter="\t",
             comment="#",
@@ -39,7 +39,7 @@ PEDDY.has_variables(::DummyHFReadSensor) = (:Ux, :Uy, :Uz, :Ts, :H2O, :P)
             time_format=DateFormat("yyyy-mm-dd HH:MM:SS.s"),
         )
 
-        input = PEDDY.DotDatDirectory(
+        input = Peddy.DotDatDirectory(
             directory=tmpdir,
             high_frequency_file_glob="data",  # extension .dat is appended automatically
             high_frequency_file_options=fo,
@@ -48,9 +48,9 @@ PEDDY.has_variables(::DummyHFReadSensor) = (:Ux, :Uy, :Uz, :Ts, :H2O, :P)
         )
 
         sensor = DummyHFReadSensor()
-        needed = collect(PEDDY.needs_data_cols(sensor))
+        needed = collect(Peddy.needs_data_cols(sensor))
 
-        hf, lf = PEDDY.read_data(input, sensor)
+        hf, lf = Peddy.read_data(input, sensor)
         @test lf === nothing
         @test hf isa DimArray
 

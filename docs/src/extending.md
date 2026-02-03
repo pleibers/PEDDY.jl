@@ -1,6 +1,6 @@
-# Extending PEDDY.jl
+# Extending Peddy.jl
 
-PEDDY.jl is designed to be modular and extensible. Each pipeline step is defined by an abstract type and interface, allowing you to implement custom processing steps tailored to your needs.
+Peddy.jl is designed to be modular and extensible. Each pipeline step is defined by an abstract type and interface, allowing you to implement custom processing steps tailored to your needs.
 
 ## Overview of the Extension Architecture
 
@@ -26,7 +26,7 @@ Each step defines a corresponding function that you implement for your custom ty
 ### Step 1: Define Your Type
 
 ```julia
-using PEDDY
+using Peddy
 using DimensionalData
 
 struct CustomQC <: AbstractQC
@@ -42,7 +42,7 @@ end
 ### Step 2: Implement the Interface Function
 
 ```julia
-function PEDDY.quality_control!(qc::CustomQC, high_frequency_data, low_frequency_data, sensor; kwargs...)
+function Peddy.quality_control!(qc::CustomQC, high_frequency_data, low_frequency_data, sensor; kwargs...)
     logger = get(kwargs, :logger, nothing)
     
     for var in qc.variables
@@ -50,7 +50,7 @@ function PEDDY.quality_control!(qc::CustomQC, high_frequency_data, low_frequency
             data_slice = @view high_frequency_data[Var=At(var)]
             
             # Your custom logic here
-            mean_val = PEDDY.mean_skipnan(data_slice)
+            mean_val = Peddy.mean_skipnan(data_slice)
             std_val = std(skipmissing(data_slice))
             
             n_removed = 0
@@ -95,7 +95,7 @@ struct ThresholdDespiking <: AbstractDespiking
     variables::Vector{Symbol}
 end
 
-function PEDDY.despike!(desp::ThresholdDespiking, high_frequency_data, low_frequency_data; kwargs...)
+function Peddy.despike!(desp::ThresholdDespiking, high_frequency_data, low_frequency_data; kwargs...)
     logger = get(kwargs, :logger, nothing)
     
     for var in desp.variables
@@ -103,7 +103,7 @@ function PEDDY.despike!(desp::ThresholdDespiking, high_frequency_data, low_frequ
             data_slice = @view high_frequency_data[Var=At(var)]
             
             # Simple threshold-based spike detection
-            mean_val = PEDDY.mean_skipnan(data_slice)
+            mean_val = Peddy.mean_skipnan(data_slice)
             std_val = std(skipmissing(data_slice))
             
             n_spikes = 0
@@ -134,7 +134,7 @@ struct ForwardFillGapFilling <: AbstractGapFilling
     variables::Vector{Symbol}
 end
 
-function PEDDY.fill_gaps!(gf::ForwardFillGapFilling, high_frequency_data, low_frequency_data; kwargs...)
+function Peddy.fill_gaps!(gf::ForwardFillGapFilling, high_frequency_data, low_frequency_data; kwargs...)
     for var in gf.variables
         if var in dims(high_frequency_data, Var)
             data_slice = @view high_frequency_data[Var=At(var)]
@@ -178,7 +178,7 @@ struct HDF5Output <: AbstractOutput
     filepath::String
 end
 
-function PEDDY.write_data(output::HDF5Output, high_frequency_data, low_frequency_data; kwargs...)
+function Peddy.write_data(output::HDF5Output, high_frequency_data, low_frequency_data; kwargs...)
     h5open(output.filepath, "w") do file
         # Write high-frequency data
         hf_group = create_group(file, "high_frequency")
@@ -217,11 +217,11 @@ function CustomSonic()
     )
 end
 
-function PEDDY.needs_data_cols(sensor::CustomSonic)
+function Peddy.needs_data_cols(sensor::CustomSonic)
     return sensor.required_variables
 end
 
-function PEDDY.check_diagnostics!(sensor::CustomSonic, high_frequency_data; kwargs...)
+function Peddy.check_diagnostics!(sensor::CustomSonic, high_frequency_data; kwargs...)
     # Custom diagnostic checks
     if :diag in dims(high_frequency_data, Var)
         diag = high_frequency_data[Var=At(:diag)]
@@ -251,7 +251,7 @@ new_data = copy(high_frequency_data)
 
 ### 2. Use the Logger Interface
 
-Integrate with PEDDY's logging system for debugging:
+Integrate with Peddy's logging system for debugging:
 
 ```julia
 function my_step!(step, hf, lf; kwargs...)
@@ -265,11 +265,11 @@ end
 
 ### 3. Handle Missing Data Gracefully
 
-Use `PEDDY.mean_skipnan` and `skipmissing` to handle NaN values:
+Use `Peddy.mean_skipnan` and `skipmissing` to handle NaN values:
 
 ```julia
 # Good: skips NaN
-mean_val = PEDDY.mean_skipnan(data)
+mean_val = Peddy.mean_skipnan(data)
 std_val = std(skipmissing(data))
 
 # Avoid: fails on NaN
@@ -343,16 +343,16 @@ end
 
 If you want to distribute your custom steps as a separate package:
 
-1. Create a new Julia package that depends on PEDDY.jl
+1. Create a new Julia package that depends on Peddy.jl
 2. Implement your custom types and functions
 3. Export them from your package's module
 4. Users can then use your steps like any built-in step
 
 Example package structure:
 ```
-MyPEDDYExtension.jl/
+MyPeddyExtension.jl/
 ├── src/
-│   ├── MyPEDDYExtension.jl
+│   ├── MyPeddyExtension.jl
 │   ├── custom_qc.jl
 │   ├── custom_despiking.jl
 │   └── custom_output.jl

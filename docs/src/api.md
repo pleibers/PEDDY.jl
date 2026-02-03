@@ -287,7 +287,7 @@ OutputSplitter
 ```julia
 out = MemoryOutput()
 process!(pipeline, hf, lf)
-hf_res, lf_res = PEDDY.get_results(out)
+hf_res, lf_res = Peddy.get_results(out)
 ```
 
 **ICSVOutput:** Write to CSV files
@@ -394,7 +394,7 @@ logger = NoOpLogger()
 Compute mean while ignoring NaN values. Returns NaN if all values are NaN.
 
 ```julia
-result = PEDDY.mean_skipnan(arr)
+result = Peddy.mean_skipnan(arr)
 ```
 
 ## Data Format

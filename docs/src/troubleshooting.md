@@ -29,7 +29,7 @@ hf = data_matrix  # Just a matrix
 **Solution:** Check what variables your sensor needs:
 ```julia
 sensor = CSAT3()
-required = PEDDY.needs_data_cols(sensor)
+required = Peddy.needs_data_cols(sensor)
 @show required  # Shows [:Ux, :Uy, :Uz, :Ts, :diag_sonic]
 ```
 
@@ -545,13 +545,13 @@ write_processing_log(logger, "/path/to/log.csv")
 julia +1.11 --project=.
 ```
 
-### Q: Can I use PEDDY.jl with my custom sensor?
+### Q: Can I use Peddy.jl with my custom sensor?
 
-**A:** Yes! Create a custom sensor type inheriting from `AbstractSensor`. See [Extending PEDDY.jl](extending.md).
+**A:** Yes! Create a custom sensor type inheriting from `AbstractSensor`. See [Extending Peddy.jl](extending.md).
 
 ### Q: How do I handle missing data?
 
-**A:** PEDDY.jl uses NaN to represent missing values. The pipeline handles NaN gracefully:
+**A:** Peddy.jl uses NaN to represent missing values. The pipeline handles NaN gracefully:
 - Quality control marks invalid data as NaN
 - Gap filling interpolates small gaps
 - Most functions use `mean_skipnan` to ignore NaN
@@ -602,12 +602,12 @@ end
 
 ### Q: Can I process data in real-time or streaming mode?
 
-**A:** Not currently. PEDDY.jl is designed for batch processing of complete datasets.
+**A:** Not currently. Peddy.jl is designed for batch processing of complete datasets.
 
 ### Q: How do I contribute improvements or report bugs?
 
 **A:** 
-1. Check [GitHub Issues](https://github.com/pleibers/PEDDY.jl/issues)
+1. Check [GitHub Issues](https://github.com/pleibers/Peddy.jl/issues)
 2. Create a minimal reproducible example
 3. Submit an issue or pull request
 
@@ -615,9 +615,9 @@ end
 
 **A:** See the [tutorial](index.md) for synthetic data examples. For real data, contact the package maintainers.
 
-### Q: How do I cite PEDDY.jl?
+### Q: How do I cite Peddy.jl?
 
-**A:** See the [README](https://github.com/pleibers/PEDDY.jl/blob/main/README.md) for citation information and DOI.
+**A:** See the [README](https://github.com/pleibers/Peddy.jl/blob/main/README.md) for citation information and DOI.
 
 ## Getting Help
 

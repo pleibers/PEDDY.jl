@@ -5,7 +5,7 @@
 
 module MRDPlotting
 
-using ..PEDDY
+using ..Peddy
 using RecipesBase
 using Dates
 using Statistics
@@ -25,9 +25,9 @@ Return the generic plotting payload for any MRD type:
 Other MRD types should overload this if they do not store results
 in the same shape as `OrthogonalMRD`.
 """
-function mrd_plot_payload(m::PEDDY.AbstractMRD)
+function mrd_plot_payload(m::Peddy.AbstractMRD)
     res = try
-        PEDDY.get_mrd_results(m)
+        Peddy.get_mrd_results(m)
     catch
         nothing
     end
@@ -59,7 +59,7 @@ function _per_scale_summary(mrd::AbstractMatrix{<:Real})
 end
 
 # Recipe for plotting an AbstractMRD object via Plots.jl
-# Usage examples (after using Plots; using PEDDY):
+# Usage examples (after using Plots; using Peddy):
 #   plot(mrd_step)                         # heatmap, log-scale y
 #   plot(mrd_step; kind=:heatmap)          # explicit heatmap
 #   plot(mrd_step; kind=:summary)          # per-scale median with interquartile ribbon
@@ -72,7 +72,7 @@ end
 #   title = nothing
 #   xlabel = "Time"
 #   ylabel = "Scale (s)"
-@recipe function f(m::PEDDY.AbstractMRD; kind = :summary,
+@recipe function f(m::Peddy.AbstractMRD; kind = :summary,
                                  metric = :mrd,
                                  logscale = true,
                                  clims = nothing,

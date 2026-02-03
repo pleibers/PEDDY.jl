@@ -1,4 +1,4 @@
-name = "PEDDY"
+name = "Peddy"
 uuid = "0ce30ac1-e258-4977-baf6-e7a1803367e2"
 authors = ["Patrick Leibersperger <patrick.leibersperger@slf.ch>", "Patricia Asemann <patricia.asemann@slf.ch>", "Rainette Engbers <rainette.engbers@slf.ch>"]
 version = "0.1.0"
@@ -35,7 +35,7 @@ ProgressMeter = "1.11"
 RecipesBase = "1.3"
 Reexport = "1.2.2"
 Statistics = "1.11.1"
-julia = "1.11"
+julia = "~1.11"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

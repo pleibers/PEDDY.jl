@@ -1,7 +1,7 @@
 using Test
 using Dates
 using DimensionalData
-using PEDDY
+using Peddy
 
 # Helper: read the generated file and extract sections/lines
 function _read_icsv_lines(path::AbstractString)
@@ -30,7 +30,7 @@ end
     tmp = mktempdir()
     base = joinpath(tmp, "icsv_test")
     out = ICSVOutput(base_filename = base,
-                     location = PEDDY.InteroperableCSV.Loc(47.0, 8.0, 1000.0))
+                     location = Peddy.InteroperableCSV.Loc(47.0, 8.0, 1000.0))
 
     # Should write only HF file
     write_data(out, arr, nothing)
@@ -90,7 +90,7 @@ end
 
     base2 = joinpath(tmp, "icsv_custom")
     out2 = ICSVOutput(base_filename = base2,
-                      location = PEDDY.InteroperableCSV.Loc(46.5, 7.5, 500.0),
+                      location = Peddy.InteroperableCSV.Loc(46.5, 7.5, 500.0),
                       fields = custom_fields,
                       field_delimiter = ";")
 

@@ -1,5 +1,5 @@
 using Test
-using PEDDY
+using Peddy
 using Dates
 
 # Mock logger for testing
@@ -8,7 +8,7 @@ struct MockLogger <: AbstractProcessingLogger
     MockLogger() = new([])
 end
 
-import PEDDY: log_event!
+import Peddy: log_event!
 function log_event!(l::MockLogger, stage::Symbol, category::Symbol; kwargs...)
     push!(l.events, (stage=stage, category=category, kwargs=Dict(kwargs)))
 end

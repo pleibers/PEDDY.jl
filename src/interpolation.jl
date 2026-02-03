@@ -62,7 +62,7 @@ end
     fill_gaps!(gap_filling::GeneralInterpolation, high_frequency_data, low_frequency_data; kwargs...)
 
 Apply interpolation gap filling to specified variables in the high frequency data.
-This replicates the Python pepy interpolation logic within the PEDDY.jl pipeline.
+This replicates the Python pepy interpolation logic within the Peddy.jl pipeline.
 
 # Arguments
 - `gap_filling::GeneralInterpolation`: Gap filling configuration

@@ -1,30 +1,30 @@
 using Test
-using PEDDY
+using Peddy
 using DimensionalData
 
 @testset "Pipeline Integration Tests" begin
     @testset "MemoryOutput Functionality" begin
         # Test MemoryOutput creation and usage
-        output = PEDDY.MemoryOutput()
-        @test output isa PEDDY.MemoryOutput
+        output = Peddy.MemoryOutput()
+        @test output isa Peddy.MemoryOutput
 
         # Create test data
         test_hf = [1.0 2.0; 3.0 4.0]
         test_lf = [5.0 6.0; 7.0 8.0]
 
         # Test write_data
-        PEDDY.write_data(output, test_hf, test_lf)
+        Peddy.write_data(output, test_hf, test_lf)
 
         # Test get_results
-        hf_result, lf_result = PEDDY.get_results(output)
+        hf_result, lf_result = Peddy.get_results(output)
         @test hf_result == test_hf
         @test lf_result == test_lf
     end
 
     @testset "Full Pipeline with Interpolation" begin
         # Create test sensor and data
-        sensor = PEDDY.CSAT3()
-        needed_cols = collect(PEDDY.needs_data_cols(sensor))  # Convert tuple to vector
+        sensor = Peddy.CSAT3()
+        needed_cols = collect(Peddy.needs_data_cols(sensor))  # Convert tuple to vector
         n_points = 50
         n_vars = length(needed_cols)
 
@@ -48,13 +48,13 @@ using DimensionalData
         original_data = copy(test_data)
 
         # Set up pipeline components
-        output = PEDDY.MemoryOutput()
-        gap_filling = PEDDY.GeneralInterpolation(; max_gap_size=10,
+        output = Peddy.MemoryOutput()
+        gap_filling = Peddy.GeneralInterpolation(; max_gap_size=10,
                                                  variables=needed_cols,
-                                                 method=PEDDY.Linear())
+                                                 method=Peddy.Linear())
 
         # Create pipeline with only gap filling enabled
-        pipeline = PEDDY.EddyPipeline(; sensor=sensor,
+        pipeline = Peddy.EddyPipeline(; sensor=sensor,
                                       quality_control=nothing,
                                       despiking=nothing,
                                       gap_filling=gap_filling,
@@ -64,10 +64,10 @@ using DimensionalData
                                       output=output)
 
         # Run pipeline
-        PEDDY.process!(pipeline, hd, ld)
+        Peddy.process!(pipeline, hd, ld)
 
         # Get results
-        processed_hf, processed_lf = PEDDY.get_results(output)
+        processed_hf, processed_lf = Peddy.get_results(output)
 
         # Test that small gaps were filled
         @test !isnan(processed_hf[Ti=10, Var=At(:Ux)])  # Small gap filled
@@ -95,8 +95,8 @@ using DimensionalData
 
     @testset "Pipeline with Multiple Steps" begin
         # Test pipeline with QC + interpolation
-        sensor = PEDDY.CSAT3()
-        needed_cols = collect(PEDDY.needs_data_cols(sensor))  # Convert tuple to vector
+        sensor = Peddy.CSAT3()
+        needed_cols = collect(Peddy.needs_data_cols(sensor))  # Convert tuple to vector
         n_points = 30
         n_vars = length(needed_cols)
 
@@ -117,11 +117,11 @@ using DimensionalData
         ld = DimArray(rand(5, n_vars), (Ti(1:5), Var(needed_cols)))
 
         # Set up pipeline with QC and gap filling
-        output = PEDDY.MemoryOutput()
-        qc = PEDDY.PhysicsBoundsCheck()  # Default physics bounds
-        gap_filling = PEDDY.GeneralInterpolation(; max_gap_size=2, variables=[:Ux, :Uy])  # Don't fill single QC-flagged values
+        output = Peddy.MemoryOutput()
+        qc = Peddy.PhysicsBoundsCheck()  # Default physics bounds
+        gap_filling = Peddy.GeneralInterpolation(; max_gap_size=2, variables=[:Ux, :Uy])  # Don't fill single QC-flagged values
 
-        pipeline = PEDDY.EddyPipeline(; sensor=sensor,
+        pipeline = Peddy.EddyPipeline(; sensor=sensor,
                                       quality_control=qc,
                                       despiking=nothing,
                                       gap_filling=gap_filling,
@@ -131,10 +131,10 @@ using DimensionalData
                                       output=output)
 
         # Run pipeline
-        PEDDY.process!(pipeline, hd, ld)
+        Peddy.process!(pipeline, hd, ld)
 
         # Get results
-        processed_hf, processed_lf = PEDDY.get_results(output)
+        processed_hf, processed_lf = Peddy.get_results(output)
 
         # Test that extreme values were removed by QC (should be NaN)
         @test isnan(processed_hf[Ti=8, Var=At(:Ux)])   # Extreme Ux value (150.0) removed by QC
@@ -146,8 +146,8 @@ using DimensionalData
 
     @testset "Different Interpolation Methods in Pipeline" begin
         # Test pipeline with different interpolation methods
-        sensor = PEDDY.CSAT3()
-        needed_cols = collect(PEDDY.needs_data_cols(sensor))  # Convert tuple to vector
+        sensor = Peddy.CSAT3()
+        needed_cols = collect(Peddy.needs_data_cols(sensor))  # Convert tuple to vector
         n_points = 20
         n_vars = length(needed_cols)
 
@@ -165,15 +165,15 @@ using DimensionalData
         ld = DimArray(rand(5, n_vars), (Ti(1:5), Var(needed_cols)))
 
         # Test different interpolation methods
-        methods_to_test = [PEDDY.Linear(), PEDDY.Quadratic(), PEDDY.Cubic()]
+        methods_to_test = [Peddy.Linear(), Peddy.Quadratic(), Peddy.Cubic()]
 
         for method in methods_to_test
-            output = PEDDY.MemoryOutput()
-            gap_filling = PEDDY.GeneralInterpolation(; max_gap_size=5,
+            output = Peddy.MemoryOutput()
+            gap_filling = Peddy.GeneralInterpolation(; max_gap_size=5,
                                                      variables=[:Ux],
                                                      method=method)
 
-            pipeline = PEDDY.EddyPipeline(; sensor=sensor,
+            pipeline = Peddy.EddyPipeline(; sensor=sensor,
                                           quality_control=nothing,
                                           despiking=nothing,
                                           gap_filling=gap_filling,
@@ -183,10 +183,10 @@ using DimensionalData
                                           output=output)
 
             # Run pipeline
-            PEDDY.process!(pipeline, copy(hd), ld)
+            Peddy.process!(pipeline, copy(hd), ld)
 
             # Get results
-            processed_hf, _ = PEDDY.get_results(output)
+            processed_hf, _ = Peddy.get_results(output)
 
             # Test that gaps were filled
             @test !isnan(processed_hf[Ti=8, Var=At(:Ux)])

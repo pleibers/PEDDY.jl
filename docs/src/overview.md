@@ -1,10 +1,10 @@
-# PEDDY.jl Documentation Overview
+# Peddy.jl Documentation Overview
 
-Welcome to PEDDY.jl – a comprehensive Julia package for processing eddy covariance data with a modular, high-performance pipeline architecture.
+Welcome to Peddy.jl – a comprehensive Julia package for processing eddy covariance data with a modular, high-performance pipeline architecture.
 
-## What is PEDDY.jl?
+## What is Peddy.jl?
 
-PEDDY.jl provides a complete framework for eddy covariance data processing, from raw measurements to publication-ready results. It features:
+Peddy.jl provides a complete framework for eddy covariance data processing, from raw measurements to publication-ready results. It features:
 
 - **Modular Pipeline Architecture**: Each processing step is pluggable and can be customized or extended
 - **High-Performance Implementation**: Optimized Julia code for fast processing of large datasets
@@ -18,7 +18,7 @@ This documentation is organized by use case and technical depth:
 
 ### For New Users
 
-Start here if you're new to PEDDY.jl or eddy covariance processing:
+Start here if you're new to Peddy.jl or eddy covariance processing:
 
 1. **[Quick Reference](quick_reference.md)** – Copy-paste examples for common tasks
    - Minimal working example
@@ -33,7 +33,7 @@ Start here if you're new to PEDDY.jl or eddy covariance processing:
    - Running the pipeline
    - Accessing results
 
-3. **[Data Format & Architecture](data_format.md)** – Understanding PEDDY's data model
+3. **[Data Format & Architecture](data_format.md)** – Understanding Peddy's data model
    - DimensionalData.jl basics
    - High-frequency and low-frequency data structure
    - Accessing and modifying data
@@ -41,7 +41,7 @@ Start here if you're new to PEDDY.jl or eddy covariance processing:
 
 ### For Active Users
 
-Use these guides while working with PEDDY.jl:
+Use these guides while working with Peddy.jl:
 
 4. **[Sensor Configuration](sensors.md)** – Choosing and configuring sensors
    - Supported sensors (CSAT3, CSAT3B, IRGASON, LICOR)
@@ -63,9 +63,9 @@ Use these guides while working with PEDDY.jl:
 
 ### For Advanced Users
 
-Extend and customize PEDDY.jl for your needs:
+Extend and customize Peddy.jl for your needs:
 
-7. **[Extending PEDDY.jl](extending.md)** – Creating custom pipeline steps
+7. **[Extending Peddy.jl](extending.md)** – Creating custom pipeline steps
    - Custom quality control
    - Custom despiking algorithms
    - Custom gap filling methods
@@ -90,7 +90,7 @@ Extend and customize PEDDY.jl for your needs:
 - **Choose a sensor**: See [Sensor Configuration](sensors.md)
 - **Configure a specific step**: Check [API Reference](api.md)
 - **Fix an error**: Look in [Troubleshooting & FAQ](troubleshooting.md)
-- **Create a custom step**: Follow [Extending PEDDY.jl](extending.md)
+- **Create a custom step**: Follow [Extending Peddy.jl](extending.md)
 - **Organize my project**: Read [Best Practice](best_practice.md)
 
 ### By Experience Level
@@ -106,15 +106,15 @@ Extend and customize PEDDY.jl for your needs:
 3. [Sensor Configuration](sensors.md) - sensor setup
 4. [Troubleshooting & FAQ](troubleshooting.md) - problem solving
 
-**Advanced (want to extend PEDDY.jl):**
+**Advanced (want to extend Peddy.jl):**
 1. [API Reference](api.md) - understand interfaces
-2. [Extending PEDDY.jl](extending.md) - create custom steps
+2. [Extending Peddy.jl](extending.md) - create custom steps
 3. [Data Format & Architecture](data_format.md) - understand data flow
 4. [Best Practice](best_practice.md) - project organization
 
 ## Pipeline Overview
 
-PEDDY.jl processes data through a configurable pipeline with these steps (in order):
+Peddy.jl processes data through a configurable pipeline with these steps (in order):
 
 ```
 Raw Data
@@ -147,7 +147,7 @@ Each step:
 
 ### DimensionalData.jl
 
-PEDDY.jl uses labeled arrays (`DimArray`) for all data:
+Peddy.jl uses labeled arrays (`DimArray`) for all data:
 
 ```julia
 hf = DimArray(
@@ -166,14 +166,14 @@ Benefits:
 
 ### Missing Data Handling
 
-PEDDY.jl uses `NaN` to represent missing values:
+Peddy.jl uses `NaN` to represent missing values:
 
 ```julia
 # Check for missing
 n_missing = count(isnan, hf)
 
 # Get statistics ignoring NaN
-mean_val = PEDDY.mean_skipnan(hf[Var=At(:Ux)])
+mean_val = Peddy.mean_skipnan(hf[Var=At(:Ux)])
 ```
 
 ### Modular Steps
@@ -185,7 +185,7 @@ struct MyCustomStep <: AbstractDespiking
     # fields
 end
 
-function PEDDY.despike!(step::MyCustomStep, hf, lf; kwargs...)
+function Peddy.despike!(step::MyCustomStep, hf, lf; kwargs...)
     # implementation
 end
 ```
@@ -292,7 +292,7 @@ Or add to your environment:
 
 ```julia
 using Pkg
-Pkg.add("PEDDY")
+Pkg.add("Peddy")
 ```
 
 ## Getting Help
@@ -301,14 +301,14 @@ Pkg.add("PEDDY")
 2. **Search for your error**: [Troubleshooting & FAQ](troubleshooting.md)
 3. **Look for examples**: [Quick Reference](quick_reference.md) and [Tutorial](index.md)
 4. **Read the API docs**: [API Reference](api.md)
-5. **Create a custom step**: [Extending PEDDY.jl](extending.md)
+5. **Create a custom step**: [Extending Peddy.jl](extending.md)
 
 ## Key Files and Directories
 
 ```
-PEDDY.jl/
+Peddy.jl/
 ├── src/                          # Source code
-│   ├── PEDDY.jl                 # Main module
+│   ├── Peddy.jl                 # Main module
 │   ├── pipeline.jl              # EddyPipeline and process!
 │   ├── despiking.jl             # Despiking implementation
 │   ├── interpolation.jl         # Gap filling
@@ -342,7 +342,7 @@ PEDDY.jl/
 
 ### Abstract Types and Dispatch
 
-PEDDY.jl uses Julia's type system for extensibility:
+Peddy.jl uses Julia's type system for extensibility:
 
 ```julia
 abstract type PipelineStep end
@@ -411,7 +411,7 @@ pipeline = EddyPipeline(
 
 ## Reproducibility
 
-PEDDY.jl supports reproducible processing:
+Peddy.jl supports reproducible processing:
 
 ```julia
 # 1. Use Project.toml for dependency management
@@ -427,14 +427,14 @@ write_processing_log(logger, "processing_log.csv")
 
 ## Citation
 
-If you use PEDDY.jl in your research, please cite:
+If you use Peddy.jl in your research, please cite:
 
 ```bibtex
 @software{leibersperger2024peddy,
-  title={PEDDY.jl: A Julia package for eddy covariance data processing},
+  title={Peddy.jl: A Julia package for eddy covariance data processing},
   author={Leibersperger, Patrick and Asemann, Patricia and Engbers, Rainette},
   year={2024},
-  url={https://github.com/pleibers/PEDDY.jl}
+  url={https://github.com/pleibers/Peddy.jl}
 }
 ```
 
@@ -444,14 +444,14 @@ Contributions are welcome! See [Best Practice](best_practice.md) for development
 
 ## License
 
-PEDDY.jl is licensed under the MIT License. See LICENSE file for details.
+Peddy.jl is licensed under the MIT License. See LICENSE file for details.
 
 ## Next Steps
 
-1. **New to PEDDY.jl?** → Start with [Quick Reference](quick_reference.md)
+1. **New to Peddy.jl?** → Start with [Quick Reference](quick_reference.md)
 2. **Want to learn more?** → Read the [Tutorial](index.md)
 3. **Need specific help?** → Check [Troubleshooting & FAQ](troubleshooting.md)
-4. **Want to extend?** → See [Extending PEDDY.jl](extending.md)
+4. **Want to extend?** → See [Extending Peddy.jl](extending.md)
 5. **Looking for details?** → Consult [API Reference](api.md)
 
 ---
