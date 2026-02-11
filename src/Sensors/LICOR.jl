@@ -82,8 +82,8 @@ function default_calibration_coefficients(sensor_name::String="", year=nothing; 
     return coeffs
 end
 
-needs_data_cols(sensor::LICOR) = (:diag_sonic, :diag_gas, :Ux, :Uy, :Uz, :Ts, :CO2, :H2O, :T, :P)
-has_variables(sensor::LICOR) = (:Ux, :Uy, :Uz, :Ts, :CO2, :H2O, :T, :P)
+needs_data_cols(sensor::LICOR) = (:diag_sonic, :diag_gas, :Ux, :Uy, :Uz, :Ts, :H2O, :P)
+has_variables(sensor::LICOR) = (:Ux, :Uy, :Uz, :Ts, :H2O, :P)
 
 function check_diagnostics!(sensor::LICOR, data::DimArray; kwargs...)
     # TODO: Is missing sonic diagnostics
