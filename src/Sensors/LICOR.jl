@@ -21,16 +21,20 @@ Fields:
 end
 
 """
-    LICOR(; number_type=Float64, diag_sonic=0, diag_gas=240, calibration_coefficients=nothing)
+    LICOR(; number_type=Float64, diag_sonic=4096, diag_gas=240, calibration_coefficients=nothing)
 
 LI-COR gas analyzer / sonic configuration with optional H2O calibration coefficients.
+
+During `check_diagnostics!`, records with `diag_sonic > diag_sonic` threshold are set to
+NaN for wind components and sonic temperature, and records with `diag_gas < diag_gas`
+threshold are set to NaN for H2O and pressure.
 
 If `calibration_coefficients` is provided, it can be used by gas analyzer correction
 steps (e.g. `H2OCalibration`).
 """
 @kwdef struct LICOR{N<:Real, COEFF <: Union{Nothing,H2OCalibrationCoefficients{N}}} <: AbstractSensor
     number_type::Type{N} = Float64 # needed for calls where COEFF = Nothing
-    diag_sonic::Int = 0
+    diag_sonic::Int = 4096
     diag_gas::Int = 240
     # H2O calibration coefficients (optional)
     calibration_coefficients::COEFF = nothing
@@ -94,13 +98,13 @@ function check_diagnostics!(sensor::LICOR, data::DimArray; kwargs...)
     gas_indices = logger === nothing ? nothing : Int[]
     sonic_indices = logger === nothing ? nothing : Int[]
     for i in eachindex(diag_gas_col)
-        if diag_gas_col[i] > sensor.diag_gas
+        if diag_gas_col[i] < sensor.diag_gas
             @debug "Discarding record $i due to diagnostic value $(diag_gas_col[i])"
             logger === nothing || push!(gas_indices, i)
             data[Ti=i, Var=At(:H2O)] = nan
             data[Ti=i, Var=At(:P)] = nan
         end
-        if diag_sonic_col[i] != sensor.diag_sonic
+        if diag_sonic_col[i] > sensor.diag_sonic
             @debug "Discarding record $i due to sonic diagnostic value $(diag_sonic_col[i])"
             logger === nothing || push!(sonic_indices, i)
             data[Ti=i, Var=At(:Ux)] = convert(eltype(data), NaN)
